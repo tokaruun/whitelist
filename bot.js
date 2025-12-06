@@ -118,7 +118,7 @@ client.on('interactionCreate', async (interaction) => {
 
         case 'redeem_key':
             await interaction.reply({
-                content: '🔑 Check DM để nhập key!',
+                content: '🔑 Check DM to Redeem Key!',
                 ephemeral: true
             });
             
@@ -194,7 +194,7 @@ client.on('interactionCreate', async (interaction) => {
                     roleResultText = '\n⚠️ Đã xảy ra lỗi khi gán role. Hãy kiểm tra quyền bot (Manage Roles) và thứ tự role.';
                 }
 
-                await dm.send(` **Redeem Key Work**\n🔑 Key: \```${key}\```\n  ${expiryText}${roleResultText}`);
+                await dm.send(` **Redeem Key Work**\n Key: \`${key}\`\n  ${expiryText}${roleResultText}`);
             } catch (error) {
                 console.error('DM Error:', error);
                 await interaction.followUp({
