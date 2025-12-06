@@ -105,12 +105,12 @@ client.on('interactionCreate', async (interaction) => {
                 userData.hwid = null;
                 users.set(userId, userData);
                 await interaction.reply({
-                    content: '✅ HWID đã được reset thành công!',
+                    content: 'HWID Reset successful!',
                     ephemeral: true
                 });
             } else {
                 await interaction.reply({
-                    content: '❌ Bạn chưa có HWID nào!',
+                    content: 'Soon , now not have hwid',
                     ephemeral: true
                 });
             }
@@ -124,7 +124,7 @@ client.on('interactionCreate', async (interaction) => {
             
             try {
                 const dm = await interaction.user.createDM();
-                await dm.send('**Nhập key của bạn:**\n_(Có 60 giây để nhập)_');
+                await dm.send('**Enter your Key:**\n_(Have 60 sec to enter , if fail button aggain redeem key)_');
                 
                 const filter = m => m.author.id === userId;
                 const collected = await dm.awaitMessages({
@@ -142,19 +142,19 @@ client.on('interactionCreate', async (interaction) => {
                 const keyData = keys.get(key);
                 
                 if (!keyData) {
-                    return await dm.send('❌ Key không tồn tại!');
+                    return await dm.send(' Key failed!');
                 }
                 
                 if (!keyData.active) {
-                    return await dm.send('❌ Key đã bị blacklist!');
+                    return await dm.send('❌ Key got blacklist!');
                 }
                 
                 if (keyData.userId) {
-                    return await dm.send('❌ Key đã được sử dụng bởi người khác!');
+                    return await dm.send('❌ Key already in use by someone else!');
                 }
                 
                 if (keyData.expiresAt && Date.now() > keyData.expiresAt) {
-                    return await dm.send('❌ Key đã hết hạn!');
+                    return await dm.send('❌ Key expired');
                 }
                 
                 // Redeem thành công
@@ -167,8 +167,8 @@ client.on('interactionCreate', async (interaction) => {
                 users.set(userId, user);
 
                 const expiryText = keyData.expiresAt 
-                    ? `Hết hạn: ${new Date(keyData.expiresAt).toLocaleString('vi-VN')}`
-                    : 'Vĩnh viễn';
+                    ? `Expired: ${new Date(keyData.expiresAt).toLocaleString('vi-VN')}`
+                    : ' Infinity';
 
                 // Thử gán role 'Prenium' trên guild nơi người dùng click button
                 let roleResultText = '';
@@ -181,7 +181,7 @@ client.on('interactionCreate', async (interaction) => {
                             const member = await guild.members.fetch(userId);
                             if (member) {
                                 await member.roles.add(role);
-                                roleResultText = '\n🎉 Bạn đã nhận role **Prenium** trên server!';
+                                roleResultText = '\n You role **Prenium** in Sever!';
                             }
                         } else {
                             roleResultText = '\n⚠️ Role `Prenium` không tìm thấy trên server.';
@@ -194,7 +194,7 @@ client.on('interactionCreate', async (interaction) => {
                     roleResultText = '\n⚠️ Đã xảy ra lỗi khi gán role. Hãy kiểm tra quyền bot (Manage Roles) và thứ tự role.';
                 }
 
-                await dm.send(`✅ **Redeem key thành công!**\n🔑 Key: \`${key}\`\n⏰ ${expiryText}${roleResultText}`);
+                await dm.send(` **Redeem Key Work**\n🔑 Key: \```${key}\```\n  ${expiryText}${roleResultText}`);
             } catch (error) {
                 console.error('DM Error:', error);
                 await interaction.followUp({
@@ -208,7 +208,7 @@ client.on('interactionCreate', async (interaction) => {
             const userKeys = users.get(userId)?.keys || [];
             if (userKeys.length === 0) {
                 return await interaction.reply({
-                    content: '❌ Bạn chưa có key nào!',
+                    content: 'You don have Keys ',
                     ephemeral: true
                 });
             }
