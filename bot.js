@@ -1,5 +1,5 @@
 // bot.js - Discord Bot với MongoDB
-const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
+const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
 const express = require('express');
 const crypto = require('crypto');
 const { MongoClient } = require('mongodb');
@@ -161,17 +161,33 @@ client.on('messageCreate', async (message) => {
 });
 
 client.on('interactionCreate', async (interaction) => {
-    if (!interaction.isButton()) return;
+    if (!interaction.isButton() && !interaction.isStringSelectMenu()) return;
 
     const userId = interaction.user.id;
 
     switch(interaction.customId) {
         case 'resethwid':
-            const userData = await getUser(userId);
+            const userDataReset = await getUser(userId);
             
-            if (!userData || !userData.hwid) {
+            if (!userDataReset || !userDataReset.keys || userDataReset.keys.length === 0) {
                 return await interaction.reply({
-                    content: '❌ You don\'t have any HWID registered yet!',
+                    content: '❌ You don\'t have any keys!',
+                    ephemeral: true
+                });
+            }
+            
+            // Lấy tất cả keys có HWID
+            const keysWithHwid = [];
+            for (const key of userDataReset.keys) {
+                const keyData = await getKey(key);
+                if (keyData && keyData.hwid) {
+                    keysWithHwid.push({ key, hwid: keyData.hwid });
+                }
+            }
+            
+            if (keysWithHwid.length === 0) {
+                return await interaction.reply({
+                    content: '❌ None of your keys have HWID registered yet!',
                     ephemeral: true
                 });
             }
@@ -182,27 +198,124 @@ client.on('interactionCreate', async (interaction) => {
             let cooldownName;
             
             if (memberReset.roles.cache.some(role => role.name === 'Whitelist')) {
-                // Role Whitelist: 4 hours
                 cooldownTime = 4 * 60 * 60 * 1000;
                 cooldownName = '4 hours';
             } else if (memberReset.roles.cache.some(role => role.name === 'Prenium')) {
-                // Role Prenium: 2.5 days
                 cooldownTime = 2.5 * 24 * 60 * 60 * 1000;
                 cooldownName = '2.5 days';
             } else {
-                // No role: không được reset
                 return await interaction.reply({
                     content: '❌ You need **Prenium** or **Whitelist** role to reset HWID!',
                     ephemeral: true
                 });
             }
             
-            // Check cooldown
-            const lastReset = userData.lastHwidReset || 0;
-            const timeSinceReset = Date.now() - lastReset;
+            // Nếu chỉ có 1 key, skip selection
+            if (keysWithHwid.length === 1) {
+                const singleKey = keysWithHwid[0].key;
+                
+                // Check cooldown
+                const lastReset = userDataReset.lastHwidReset || 0;
+                const timeSinceReset = Date.now() - lastReset;
+                
+                if (timeSinceReset < cooldownTime && lastReset !== 0) {
+                    const timeLeft = cooldownTime - timeSinceReset;
+                    const hoursLeft = Math.ceil(timeLeft / (60 * 60 * 1000));
+                    const daysLeft = Math.ceil(timeLeft / (24 * 60 * 60 * 1000));
+                    
+                    const timeDisplay = hoursLeft < 48 
+                        ? `**${hoursLeft} hours**` 
+                        : `**${daysLeft} days**`;
+                    
+                    return await interaction.reply({
+                        content: `⏳ You can reset HWID again in ${timeDisplay}!`,
+                        ephemeral: true
+                    });
+                }
+                
+                const confirmRow = new ActionRowBuilder()
+                    .addComponents(
+                        new ButtonBuilder()
+                            .setCustomId(`confirm_reset_hwid_${singleKey}`)
+                            .setLabel('✅ Confirm Reset')
+                            .setStyle(ButtonStyle.Danger),
+                        new ButtonBuilder()
+                            .setCustomId('cancel_reset_hwid')
+                            .setLabel('❌ Cancel')
+                            .setStyle(ButtonStyle.Secondary)
+                    );
+                
+                return await interaction.reply({
+                    content: '⚠️ **Are you sure you want to reset your HWID?**\n\n' +
+                             `Key: \`${singleKey}\`\n` +
+                             `Current HWID: \`${keysWithHwid[0].hwid}\`\n\n` +
+                             `**Note:** You can reset HWID once every ${cooldownName}!`,
+                    components: [confirmRow],
+                    ephemeral: true
+                });
+            }
             
-            if (timeSinceReset < cooldownTime && lastReset !== 0) {
-                const timeLeft = cooldownTime - timeSinceReset;
+            // Nếu có nhiều keys, show selection menu
+            const selectMenu = new ActionRowBuilder()
+                .addComponents(
+                    new StringSelectMenuBuilder()
+                        .setCustomId('select_key_reset_hwid')
+                        .setPlaceholder('Select a key to reset HWID')
+                        .addOptions(
+                            keysWithHwid.map((item, index) => ({
+                                label: `Key #${index + 1}`,
+                                description: `${item.key.substring(0, 16)}... | HWID: ${item.hwid.substring(0, 20)}...`,
+                                value: item.key
+                            }))
+                        )
+                );
+            
+            await interaction.reply({
+                content: '🔑 **Select a key to reset HWID:**\n\n' +
+                         `You have **${keysWithHwid.length} keys** with HWID registered.\n` +
+                         `Cooldown: **${cooldownName}**`,
+                components: [selectMenu],
+                ephemeral: true
+            });
+            break;
+        
+        case 'select_key_reset_hwid':
+            if (!interaction.isStringSelectMenu()) return;
+            
+            const selectedKey = interaction.values[0];
+            const userDataSelect = await getUser(userId);
+            const selectedKeyData = await getKey(selectedKey);
+            
+            if (!selectedKeyData || !selectedKeyData.hwid) {
+                return await interaction.update({
+                    content: '❌ Error: Key or HWID not found!',
+                    components: []
+                });
+            }
+            
+            // Check role và cooldown
+            const memberSelect = await interaction.guild.members.fetch(userId);
+            let cooldownTimeSelect;
+            let cooldownNameSelect;
+            
+            if (memberSelect.roles.cache.some(role => role.name === 'Whitelist')) {
+                cooldownTimeSelect = 4 * 60 * 60 * 1000;
+                cooldownNameSelect = '4 hours';
+            } else if (memberSelect.roles.cache.some(role => role.name === 'Prenium')) {
+                cooldownTimeSelect = 2.5 * 24 * 60 * 60 * 1000;
+                cooldownNameSelect = '2.5 days';
+            } else {
+                return await interaction.update({
+                    content: '❌ You need **Prenium** or **Whitelist** role to reset HWID!',
+                    components: []
+                });
+            }
+            
+            const lastResetSelect = userDataSelect.lastHwidReset || 0;
+            const timeSinceResetSelect = Date.now() - lastResetSelect;
+            
+            if (timeSinceResetSelect < cooldownTimeSelect && lastResetSelect !== 0) {
+                const timeLeft = cooldownTimeSelect - timeSinceResetSelect;
                 const hoursLeft = Math.ceil(timeLeft / (60 * 60 * 1000));
                 const daysLeft = Math.ceil(timeLeft / (24 * 60 * 60 * 1000));
                 
@@ -210,17 +323,16 @@ client.on('interactionCreate', async (interaction) => {
                     ? `**${hoursLeft} hours**` 
                     : `**${daysLeft} days**`;
                 
-                return await interaction.reply({
+                return await interaction.update({
                     content: `⏳ You can reset HWID again in ${timeDisplay}!`,
-                    ephemeral: true
+                    components: []
                 });
             }
             
-            // Confirmation button
-            const confirmRow = new ActionRowBuilder()
+            const confirmRowSelect = new ActionRowBuilder()
                 .addComponents(
                     new ButtonBuilder()
-                        .setCustomId('confirm_reset_hwid')
+                        .setCustomId(`confirm_reset_hwid_${selectedKey}`)
                         .setLabel('✅ Confirm Reset')
                         .setStyle(ButtonStyle.Danger),
                     new ButtonBuilder()
@@ -229,21 +341,24 @@ client.on('interactionCreate', async (interaction) => {
                         .setStyle(ButtonStyle.Secondary)
                 );
             
-            await interaction.reply({
-                content: '⚠️ **Are you sure you want to reset your HWID?**\n\n' +
-                         `Current HWID: \`${userData.hwid}\`\n\n` +
-                         `**Note:** You can reset HWID once every ${cooldownName}!`,
-                components: [confirmRow],
-                ephemeral: true
+            await interaction.update({
+                content: '⚠️ **Are you sure you want to reset HWID for this key?**\n\n' +
+                         `Key: \`${selectedKey}\`\n` +
+                         `Current HWID: \`${selectedKeyData.hwid}\`\n\n` +
+                         `**Note:** You can reset HWID once every ${cooldownNameSelect}!`,
+                components: [confirmRowSelect]
             });
             break;
         
         case 'confirm_reset_hwid':
+            // Extract key from customId (format: confirm_reset_hwid_KEYVALUE)
+            const keyToReset = interaction.customId.replace('confirm_reset_hwid_', '');
             const userToReset = await getUser(userId);
+            const keyDataToReset = await getKey(keyToReset);
             
-            if (!userToReset || !userToReset.hwid) {
+            if (!keyDataToReset || !keyDataToReset.hwid) {
                 return await interaction.update({
-                    content: '❌ Error: No HWID found!',
+                    content: '❌ Error: Key or HWID not found!',
                     components: []
                 });
             }
@@ -260,12 +375,17 @@ client.on('interactionCreate', async (interaction) => {
                 cooldownDisplay = 'N/A';
             }
             
-            const oldHwid = userToReset.hwid;
+            const oldHwid = keyDataToReset.hwid;
             
-            // Reset HWID
+            // Reset HWID cho key cụ thể
+            await setKey(keyToReset, {
+                ...keyDataToReset,
+                hwid: null
+            });
+            
+            // Update user reset time
             await setUser(userId, {
                 ...userToReset,
-                hwid: null,
                 lastHwidReset: Date.now(),
                 hwidResetCount: (userToReset.hwidResetCount || 0) + 1
             });
@@ -275,17 +395,19 @@ client.on('interactionCreate', async (interaction) => {
             await logCollection.insertOne({
                 userId: userId,
                 userTag: interaction.user.tag,
+                key: keyToReset,
                 oldHwid: oldHwid,
                 resetAt: Date.now(),
                 cooldown: cooldownDisplay
             });
             
-            console.log(`🔄 HWID Reset: User ${userId} (${interaction.user.tag}) reset HWID from ${oldHwid}`);
+            console.log(`🔄 HWID Reset: User ${userId} (${interaction.user.tag}) reset HWID for key ${keyToReset}`);
             
             await interaction.update({
                 content: '✅ **HWID Reset Successful!**\n\n' +
+                         `Key: \`${keyToReset}\`\n` +
                          `Old HWID: \`${oldHwid}\`\n` +
-                         'Your HWID has been cleared. You can now use your key on a new device.\n\n' +
+                         'Your HWID has been cleared. You can now use this key on a new device.\n\n' +
                          `⏰ Next reset available in: **${cooldownDisplay}**`,
                 components: []
             });
