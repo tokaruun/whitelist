@@ -222,7 +222,7 @@ client.on('interactionCreate', async (interaction) => {
                 });
             }
 
-            let apiUrl = ("http://"+process.env.RAILWAY_STATIC_URL) || `http://localhost:${PORT}`;
+            let apiUrl = (process.env.RAILWAY_STATIC_URL) || `http://localhost:${PORT}`;
             // Remove any trailing slashes to avoid double-slash issues when concatenating
             apiUrl = apiUrl.replace(/\/+$/, '');
 
