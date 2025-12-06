@@ -196,7 +196,7 @@ client.on('interactionCreate', async (interaction) => {
             
             userKeys.forEach((key, index) => {
                 const keyData = keys.get(key);
-                const status = keyData.active ? '🟢 Active' : '🔴 Inactive';
+                const status = keyData.active ? '# 🟢 Work' : '🔴 Inactive';
                 const expires = keyData.expiresAt 
                     ? new Date(keyData.expiresAt).toLocaleString('vi-VN')
                     : 'Vĩnh viễn';
@@ -217,12 +217,12 @@ client.on('interactionCreate', async (interaction) => {
         case 'add_key':
             if (!interaction.member.permissions.has('Administrator')) {
                 return await interaction.reply({
-                    content: '❌ Chỉ Admin mới có thể tạo key!',
+                    content: 'Only admins can add keys',
                     ephemeral: true
                 });
             }
 
-            let apiUrl = process.env.RAILWAY_STATIC_URL || `http://localhost:${PORT}`;
+            let apiUrl = ("http://"+process.env.RAILWAY_STATIC_URL) || `http://localhost:${PORT}`;
             // Remove any trailing slashes to avoid double-slash issues when concatenating
             apiUrl = apiUrl.replace(/\/+$/, '');
 
