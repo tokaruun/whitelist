@@ -168,18 +168,95 @@ client.on('interactionCreate', async (interaction) => {
     switch(interaction.customId) {
         case 'resethwid':
             const userData = await getUser(userId);
-            if (userData && userData.hwid) {
-                await setUser(userId, { ...userData, hwid: null });
-                await interaction.reply({
-                    content: '✅ HWID Reset successful!',
-                    ephemeral: true
-                });
-            } else {
-                await interaction.reply({
-                    content: '❌ Soon, now not have hwid',
+            
+            if (!userData || !userData.hwid) {
+                return await interaction.reply({
+                    content: '❌ You don\'t have any HWID registered yet!',
                     ephemeral: true
                 });
             }
+            
+            // Check cooldown (30 days)
+            const lastReset = userData.lastHwidReset || 0;
+            const cooldownTime = 30 * 24 * 60 * 60 * 1000; // 30 days
+            const timeSinceReset = Date.now() - lastReset;
+            
+            if (timeSinceReset < cooldownTime && lastReset !== 0) {
+                const timeLeft = cooldownTime - timeSinceReset;
+                const daysLeft = Math.ceil(timeLeft / (24 * 60 * 60 * 1000));
+                return await interaction.reply({
+                    content: `⏳ You can reset HWID again in **${daysLeft} days**!`,
+                    ephemeral: true
+                });
+            }
+            
+            // Confirmation button
+            const confirmRow = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('confirm_reset_hwid')
+                        .setLabel('✅ Confirm Reset')
+                        .setStyle(ButtonStyle.Danger),
+                    new ButtonBuilder()
+                        .setCustomId('cancel_reset_hwid')
+                        .setLabel('❌ Cancel')
+                        .setStyle(ButtonStyle.Secondary)
+                );
+            
+            await interaction.reply({
+                content: '⚠️ **Are you sure you want to reset your HWID?**\n\n' +
+                         `Current HWID: \`${userData.hwid}\`\n\n` +
+                         '**Note:** You can only reset HWID once every 30 days!',
+                components: [confirmRow],
+                ephemeral: true
+            });
+            break;
+        
+        case 'confirm_reset_hwid':
+            const userToReset = await getUser(userId);
+            
+            if (!userToReset || !userToReset.hwid) {
+                return await interaction.update({
+                    content: '❌ Error: No HWID found!',
+                    components: []
+                });
+            }
+            
+            const oldHwid = userToReset.hwid;
+            
+            // Reset HWID
+            await setUser(userId, {
+                ...userToReset,
+                hwid: null,
+                lastHwidReset: Date.now(),
+                hwidResetCount: (userToReset.hwidResetCount || 0) + 1
+            });
+            
+            // Log to MongoDB
+            const logCollection = db.collection('hwid_reset_logs');
+            await logCollection.insertOne({
+                userId: userId,
+                oldHwid: oldHwid,
+                resetAt: Date.now(),
+                resetBy: interaction.user.tag
+            });
+            
+            console.log(`🔄 HWID Reset: User ${userId} (${interaction.user.tag}) reset HWID from ${oldHwid}`);
+            
+            await interaction.update({
+                content: '✅ **HWID Reset Successful!**\n\n' +
+                         `Old HWID: \`${oldHwid}\`\n` +
+                         'Your HWID has been cleared. You can now use your key on a new device.\n\n' +
+                         '⏰ Next reset available in: **30 days**',
+                components: []
+            });
+            break;
+        
+        case 'cancel_reset_hwid':
+            await interaction.update({
+                content: '❌ HWID reset cancelled.',
+                components: []
+            });
             break;
 
         case 'redeem_key':
