@@ -1,4 +1,4 @@
-// bot.js - Discord Bot với API (Railway Version)
+// bot.js - Discord Bot với MongoDB
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const express = require('express');
 const crypto = require('crypto');
@@ -15,20 +15,84 @@ const client = new Client({
         GatewayIntentBits.DirectMessages
     ],
     partials: ['CHANNEL']
-})
+});
 
-// Lấy config từ environment variables
+// Config
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const API_SECRET = process.env.API_SECRET || 'change-this-secret';
 const PORT = process.env.PORT || 3000;
+const MONGODB_URI = process.env.MONGODB_URI; // Add MongoDB URI to environment variables
 
-// Database đơn giản (trong production nên dùng MongoDB/PostgreSQL)
-const keys = new Map();
-const users = new Map();
+// MongoDB setup
+let db;
+let keysCollection;
+let usersCollection;
+
+async function connectMongoDB() {
+    try {
+        const mongoClient = new MongoClient(MONGODB_URI);
+        await mongoClient.connect();
+        console.log('✅ Connected to MongoDB');
+        
+        db = mongoClient.db('whitelist'); // Tên database
+        keysCollection = db.collection('keys');
+        usersCollection = db.collection('users');
+        
+        // Create indexes
+        await keysCollection.createIndex({ key: 1 }, { unique: true });
+        await usersCollection.createIndex({ userId: 1 }, { unique: true });
+        
+    } catch (error) {
+        console.error('❌ MongoDB connection failed:', error);
+        process.exit(1);
+    }
+}
+
+// ==================== HELPER FUNCTIONS ====================
+
+async function getKey(key) {
+    return await keysCollection.findOne({ key });
+}
+
+async function setKey(key, data) {
+    await keysCollection.updateOne(
+        { key },
+        { $set: data },
+        { upsert: true }
+    );
+}
+
+async function deleteKey(key) {
+    await keysCollection.deleteOne({ key });
+}
+
+async function getAllKeys() {
+    return await keysCollection.find({}).toArray();
+}
+
+async function getUser(userId) {
+    return await usersCollection.findOne({ userId });
+}
+
+async function setUser(userId, data) {
+    await usersCollection.updateOne(
+        { userId },
+        { $set: data },
+        { upsert: true }
+    );
+}
+
+async function getAllUsers() {
+    return await usersCollection.find({}).toArray();
+}
+
+function generateKey() {
+    return crypto.randomBytes(16).toString('hex').toUpperCase();
+}
 
 // ==================== DISCORD BOT ====================
 
-client.on('ready', () => {
+client.on('ready', async () => {
     console.log(`✅ Bot online: ${client.user.tag}`);
     console.log(`🚀 API running on port ${PORT}`);
 });
@@ -78,14 +142,16 @@ client.on('messageCreate', async (message) => {
         });
     }
     
-    // Command để xem stats
     if (message.content === '!stats') {
+        const totalKeys = await keysCollection.countDocuments();
+        const totalUsers = await usersCollection.countDocuments();
+        
         const embed = new EmbedBuilder()
             .setColor('#00FF00')
             .setTitle('📊 Bot Statistics')
             .addFields(
-                { name: '🔑 Total Keys', value: keys.size.toString(), inline: true },
-                { name: '👥 Total Users', value: users.size.toString(), inline: true },
+                { name: '🔑 Total Keys', value: totalKeys.toString(), inline: true },
+                { name: '👥 Total Users', value: totalUsers.toString(), inline: true },
                 { name: '⏱️ Uptime', value: `${Math.floor(client.uptime / 1000 / 60)} minutes`, inline: true }
             )
             .setTimestamp();
@@ -101,17 +167,16 @@ client.on('interactionCreate', async (interaction) => {
 
     switch(interaction.customId) {
         case 'resethwid':
-            const userData = users.get(userId);
+            const userData = await getUser(userId);
             if (userData && userData.hwid) {
-                userData.hwid = null;
-                users.set(userId, userData);
+                await setUser(userId, { ...userData, hwid: null });
                 await interaction.reply({
-                    content: 'HWID Reset successful!',
+                    content: '✅ HWID Reset successful!',
                     ephemeral: true
                 });
             } else {
                 await interaction.reply({
-                    content: 'Soon , now not have hwid',
+                    content: '❌ Soon, now not have hwid',
                     ephemeral: true
                 });
             }
@@ -125,25 +190,25 @@ client.on('interactionCreate', async (interaction) => {
             
             try {
                 const dm = await interaction.user.createDM();
-                await dm.send('**Enter your Key:**\n_(Have 60 sec to enter , if fail button aggain redeem key)_');
+                await dm.send('**Enter your Key:**\n_(Have 60 sec to enter, if fail button again redeem key)_');
                 
                 const filter = m => m.author.id === userId;
                 const collected = await dm.awaitMessages({
-                filter,
-                max: 1,
-                time: 60000,
-                errors: ['time']
-           });
+                    filter,
+                    max: 1,
+                    time: 60000,
+                    errors: ['time']
+                });
                 
                 if (!collected.size) {
-                    return await dm.send('⏱️ Hết thời gian! Vui lòng thử lại.');
+                    return await dm.send('⏱️ Time out! Please try again.');
                 }
                 
                 const key = collected.first().content.trim();
-                const keyData = keys.get(key);
+                const keyData = await getKey(key);
                 
                 if (!keyData) {
-                    return await dm.send(' Key failed!');
+                    return await dm.send('❌ Key failed!');
                 }
                 
                 if (!keyData.active) {
@@ -159,79 +224,84 @@ client.on('interactionCreate', async (interaction) => {
                 }
                 
                 // Redeem thành công
-                keyData.userId = userId;
-                keyData.redeemedAt = Date.now();
-                keys.set(key, keyData);
+                await setKey(key, {
+                    ...keyData,
+                    userId: userId,
+                    redeemedAt: Date.now()
+                });
                 
-                const user = users.get(userId) || { keys: [], hwid: null };
+                const user = await getUser(userId) || { userId, keys: [], hwid: null };
+                user.keys = user.keys || [];
                 user.keys.push(key);
-                users.set(userId, user);
+                await setUser(userId, user);
 
                 const expiryText = keyData.expiresAt 
                     ? `Expired: ${new Date(keyData.expiresAt).toLocaleString('vi-VN')}`
-                    : ' Infinity';
+                    : '♾️ Infinity';
 
-                // Thử gán role 'Prenium' trên guild nơi người dùng click button
+                // Gán role 'Prenium'
                 let roleResultText = '';
                 try {
                     if (interaction.guild) {
                         const guild = interaction.guild;
-                        // Tìm role theo tên (case-sensitive)
                         const role = guild.roles.cache.find(r => r.name === 'Prenium');
                         if (role) {
                             const member = await guild.members.fetch(userId);
                             if (member) {
                                 await member.roles.add(role);
-                                roleResultText = '\n You got role **Prenium** in Sever!';
+                                roleResultText = '\n✅ You got role **Prenium** in Server!';
                             }
                         } else {
-                            roleResultText = '\nYou have Role Prenium in Sever!';
+                            roleResultText = '\n⚠️ Role Prenium not found in server!';
                         }
-                    } else {
-                        roleResultText = '\n⚠️ Không thể gán role vì không xác định được server (interaction.guild undefined).';
                     }
                 } catch (err) {
                     console.error('Role assignment error:', err);
-                    roleResultText = '\n⚠️ Đã xảy ra lỗi khi gán role. Hãy kiểm tra quyền bot (Manage Roles) và thứ tự role.';
+                    roleResultText = '\n⚠️ Error assigning role. Check bot permissions.';
                 }
 
-                await dm.send(` **Redeem Key Work**\n Key: \`${key}\`\n  ${expiryText}${roleResultText}`);
+                await dm.send(`✅ **Redeem Key Work**\nKey: \`${key}\`\n${expiryText}${roleResultText}`);
             } catch (error) {
                 console.error('DM Error:', error);
                 await interaction.followUp({
-                    content: '❌ Không thể gửi DM! Vui lòng bật DM từ server members.',
+                    content: '❌ Cannot send DM! Please enable DM from server members.',
                     ephemeral: true
                 });
             }
             break;
 
         case 'manage_key':
-            const userKeys = users.get(userId)?.keys || [];
+            const user = await getUser(userId);
+            const userKeys = user?.keys || [];
+            
             if (userKeys.length === 0) {
                 return await interaction.reply({
-                    content: 'You don have Keys ',
+                    content: '❌ You don\'t have Keys',
                     ephemeral: true
                 });
             }
             
             const embed = new EmbedBuilder()
                 .setColor('#0099FF')
-                .setTitle('📋 Keys của bạn')
+                .setTitle('📋 Your Keys')
                 .setTimestamp();
             
-            userKeys.forEach((key, index) => {
-                const keyData = keys.get(key);
-                const status = keyData.active ? ' 🟢 Work' : '🔴 Inactive';
-                const expires = keyData.expiresAt 
-                    ? new Date(keyData.expiresAt).toLocaleString('vi-VN')
-                    : 'Vĩnh viễn';
-                
-                embed.addFields({
-                    name: `Key #${index + 1}`,
-                    value: `\`${key}\`\n${status} | Hết hạn: ${expires}`,
-                    inline: false
-                });
-            });
+            for (let i = 0; i < userKeys.length; i++) {
+                const key = userKeys[i];
+                const keyData = await getKey(key);
+                if (keyData) {
+                    const status = keyData.active ? '🟢 Active' : '🔴 Inactive';
+                    const expires = keyData.expiresAt 
+                        ? new Date(keyData.expiresAt).toLocaleString('vi-VN')
+                        : 'Forever';
+                    
+                    embed.addFields({
+                        name: `Key #${i + 1}`,
+                        value: `\`${key}\`\n${status} | Expires: ${expires}`,
+                        inline: false
+                    });
+                }
+            }
             
             await interaction.reply({
                 embeds: [embed],
@@ -240,30 +310,27 @@ client.on('interactionCreate', async (interaction) => {
             break;
 
         case 'add_key':
-
-            
             const targetRoleName = 'Whitelist';
             const member = interaction.member;
             if (!member) {
                 return await interaction.reply({
-                    content: ' Không thể xác định thành viên (phải sử dụng trong server).',
+                    content: '❌ Cannot identify member (must use in server).',
                     ephemeral: true
                 });
             }
             const hasOwnerRole = member.roles.cache.some(role => role.name === targetRoleName);
             if (!hasOwnerRole) {
                 return await interaction.reply({
-                content: `You don't have **${targetRoleName}** to use Command!`,
-                ephemeral: true
-              });
+                    content: `❌ You don't have **${targetRoleName}** to use this command!`,
+                    ephemeral: true
+                });
             }
 
             let apiUrl = (process.env.RAILWAY_STATIC_URL) || `http://localhost:${PORT}`;
-            // Remove any trailing slashes to avoid double-slash issues when concatenating
             apiUrl = apiUrl.replace(/\/+$/, '');
 
             await interaction.reply({
-                content: `➕ **Tạo key qua API:**\n\n**Bash / macOS / Linux**\n\`\`\`bash\ncurl -X POST ${apiUrl}/api/keys/create \\\n+  -H "x-api-key: ${API_SECRET}" \\\n+  -H "Content-Type: application/json" \\\n+  -d '{"duration": 30, "quantity": 1}'\n\`\`\`\n\n**Windows (cmd.exe)**\n\`\`\`\ncurl -X POST "${apiUrl}/api/keys/create" -H "x-api-key: ${API_SECRET}" -H "Content-Type: application/json" -d \"{\\\"duration\\\":30,\\\"quantity\\\":1}\"\n\`\`\`\n\n**PowerShell (Invoke-RestMethod)**\n\`\`\`powershell\nInvoke-RestMethod -Method Post -Uri "${apiUrl}/api/keys/create" -Headers @{\"x-api-key\"=\"${API_SECRET}\"; \"Content-Type\"=\"application/json\"} -Body '{"duration":30,"quantity":1}'\n\`\`\``,
+                content: `➕ **Create key via API:**\n\n**Bash / macOS / Linux**\n\`\`\`bash\ncurl -X POST ${apiUrl}/api/keys/create \\\n  -H "x-api-key: ${API_SECRET}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"duration": 30, "quantity": 1}'\n\`\`\`\n\n**Windows (cmd.exe)**\n\`\`\`\ncurl -X POST "${apiUrl}/api/keys/create" -H "x-api-key: ${API_SECRET}" -H "Content-Type: application/json" -d "{\\\"duration\\\":30,\\\"quantity\\\":1}"\n\`\`\`\n\n**PowerShell**\n\`\`\`powershell\nInvoke-RestMethod -Method Post -Uri "${apiUrl}/api/keys/create" -Headers @{"x-api-key"="${API_SECRET}"; "Content-Type"="application/json"} -Body '{"duration":30,"quantity":1}'\n\`\`\``,
                 ephemeral: true
             });
             break;
@@ -271,12 +338,12 @@ client.on('interactionCreate', async (interaction) => {
         case 'blacklist_key':
             if (!interaction.member.permissions.has('Administrator')) {
                 return await interaction.reply({
-                    content: '❌ Chỉ Admin mới có thể blacklist!',
+                    content: '❌ Only Admin can blacklist!',
                     ephemeral: true
                 });
             }
             await interaction.reply({
-                content: '🚫 Sử dụng API endpoint `/api/keys/blacklist` để vô hiệu hóa key.',
+                content: '🚫 Use API endpoint `/api/keys/blacklist` to disable key.',
                 ephemeral: true
             });
             break;
@@ -293,18 +360,17 @@ function authenticate(req, res, next) {
     next();
 }
 
-function generateKey() {
-    return crypto.randomBytes(16).toString('hex').toUpperCase();
-}
-
 // Health check
-app.get('/', (req, res) => {
+app.get('/', async (req, res) => {
+    const totalKeys = await keysCollection.countDocuments();
+    const totalUsers = await usersCollection.countDocuments();
+    
     res.json({ 
         status: 'OK',
         bot: client.user ? client.user.tag : 'Not ready',
         uptime: Math.floor(process.uptime()),
-        keys: keys.size,
-        users: users.size
+        keys: totalKeys,
+        users: totalUsers
     });
 });
 
@@ -318,7 +384,7 @@ app.get('/api/health', (req, res) => {
 });
 
 // Tạo key
-app.post('/api/keys/create', authenticate, (req, res) => {
+app.post('/api/keys/create', authenticate, async (req, res) => {
     const { duration, quantity = 1 } = req.body;
     
     if (quantity > 100) {
@@ -331,7 +397,8 @@ app.post('/api/keys/create', authenticate, (req, res) => {
         const key = generateKey();
         const expiresAt = duration ? Date.now() + (duration * 24 * 60 * 60 * 1000) : null;
         
-        keys.set(key, {
+        await setKey(key, {
+            key,
             userId: null,
             hwid: null,
             active: true,
@@ -356,9 +423,9 @@ app.post('/api/keys/create', authenticate, (req, res) => {
 });
 
 // Kiểm tra key
-app.get('/api/keys/check/:key', authenticate, (req, res) => {
+app.get('/api/keys/check/:key', authenticate, async (req, res) => {
     const { key } = req.params;
-    const keyData = keys.get(key);
+    const keyData = await getKey(key);
     
     if (!keyData) {
         return res.status(404).json({ error: 'Key not found' });
@@ -372,21 +439,20 @@ app.get('/api/keys/check/:key', authenticate, (req, res) => {
 });
 
 // Blacklist key
-app.post('/api/keys/blacklist', authenticate, (req, res) => {
+app.post('/api/keys/blacklist', authenticate, async (req, res) => {
     const { key } = req.body;
     
     if (!key) {
         return res.status(400).json({ error: 'Key is required' });
     }
     
-    const keyData = keys.get(key);
+    const keyData = await getKey(key);
     
     if (!keyData) {
         return res.status(404).json({ error: 'Key not found' });
     }
     
-    keyData.active = false;
-    keys.set(key, keyData);
+    await setKey(key, { ...keyData, active: false });
     
     console.log(`🚫 Blacklisted key: ${key}`);
     
@@ -398,26 +464,23 @@ app.post('/api/keys/blacklist', authenticate, (req, res) => {
 });
 
 // List tất cả keys
-app.get('/api/keys/list', authenticate, (req, res) => {
-    const allKeys = [];
+app.get('/api/keys/list', authenticate, async (req, res) => {
+    const allKeys = await getAllKeys();
     
-    keys.forEach((value, key) => {
-        allKeys.push({
-            key,
-            ...value,
-            isExpired: value.expiresAt && Date.now() > value.expiresAt
-        });
-    });
+    const keysWithStatus = allKeys.map(keyData => ({
+        ...keyData,
+        isExpired: keyData.expiresAt && Date.now() > keyData.expiresAt
+    }));
     
     res.json({
         success: true,
-        total: allKeys.length,
-        keys: allKeys
+        total: keysWithStatus.length,
+        keys: keysWithStatus
     });
 });
 
-// Xác thực HWID (cho game/app)
-app.post('/api/verify', (req, res) => {
+// Xác thực HWID (cho game/app) - QUAN TRỌNG CHO LUA LOADER
+app.post('/api/verify', async (req, res) => {
     const { key, hwid } = req.body;
     
     if (!key || !hwid) {
@@ -427,7 +490,7 @@ app.post('/api/verify', (req, res) => {
         });
     }
     
-    const keyData = keys.get(key);
+    const keyData = await getKey(key);
     
     if (!keyData) {
         return res.json({ success: false, message: 'Invalid key' });
@@ -445,11 +508,14 @@ app.post('/api/verify', (req, res) => {
         return res.json({ success: false, message: 'Key not redeemed yet' });
     }
     
-    const user = users.get(keyData.userId);
+    const user = await getUser(keyData.userId);
+    
+    if (!user) {
+        return res.json({ success: false, message: 'User not found' });
+    }
     
     if (!user.hwid) {
-        user.hwid = hwid;
-        users.set(keyData.userId, user);
+        await setUser(keyData.userId, { ...user, hwid });
         console.log(`🔐 HWID registered for user ${keyData.userId}`);
         return res.json({ success: true, message: 'HWID registered successfully' });
     }
@@ -463,18 +529,25 @@ app.post('/api/verify', (req, res) => {
 
 // ==================== START ====================
 
-app.listen(PORT, () => {
-    console.log(`🚀 API Server running on port ${PORT}`);
-});
-
-// Kiểm tra có token không
-if (!DISCORD_TOKEN) {
-    console.error('❌ DISCORD_TOKEN không được thiết lập!');
-    console.error('Vui lòng thêm DISCORD_TOKEN vào environment variables');
-    process.exit(1);
+async function start() {
+    // Connect MongoDB first
+    await connectMongoDB();
+    
+    // Start Express server
+    app.listen(PORT, () => {
+        console.log(`🚀 API Server running on port ${PORT}`);
+    });
+    
+    // Login Discord bot
+    if (!DISCORD_TOKEN) {
+        console.error('❌ DISCORD_TOKEN not set!');
+        process.exit(1);
+    }
+    
+    await client.login(DISCORD_TOKEN).catch(err => {
+        console.error('❌ Cannot login Discord:', err);
+        process.exit(1);
+    });
 }
 
-client.login(DISCORD_TOKEN).catch(err => {
-    console.error('❌ Không thể đăng nhập Discord:', err);
-    process.exit(1);
-});
+start();
