@@ -177,15 +177,15 @@ client.on('interactionCreate', async (interaction) => {
             }
             
             // Check role để xác định cooldown
-            const member = await interaction.guild.members.fetch(userId);
+            const memberReset = await interaction.guild.members.fetch(userId);
             let cooldownTime;
             let cooldownName;
             
-            if (member.roles.cache.some(role => role.name === 'Whitelist')) {
+            if (memberReset.roles.cache.some(role => role.name === 'Whitelist')) {
                 // Role Whitelist: 4 hours
                 cooldownTime = 4 * 60 * 60 * 1000;
                 cooldownName = '4 hours';
-            } else if (member.roles.cache.some(role => role.name === 'Prenium')) {
+            } else if (memberReset.roles.cache.some(role => role.name === 'Prenium')) {
                 // Role Prenium: 2.5 days
                 cooldownTime = 2.5 * 24 * 60 * 60 * 1000;
                 cooldownName = '2.5 days';
