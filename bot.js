@@ -36,7 +36,7 @@ client.on('messageCreate', async (message) => {
     if (message.content === '!whitelist') {
         const embed = new EmbedBuilder()
             .setColor('#FF1744')
-            .setTitle('Whitelist Panel Emorima Rejoin')
+            .setTitle('Whitelist Panel D4Vd HuB')
             .setDescription('Use the buttons below to manage your keys.')
             .setThumbnail(client.user.displayAvatarURL())
             .setTimestamp();
