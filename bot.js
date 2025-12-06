@@ -187,7 +187,7 @@ client.on('interactionCreate', async (interaction) => {
             
             if (keysWithHwid.length === 0) {
                 return await interaction.reply({
-                    content: '❌ None of your keys have HWID registered yet!',
+                    content: ' None of your keys have HWID registered yet!',
                     ephemeral: true
                 });
             }
@@ -205,7 +205,7 @@ client.on('interactionCreate', async (interaction) => {
                 cooldownName = '2.5 days';
             } else {
                 return await interaction.reply({
-                    content: '❌ You need **Prenium** or **Whitelist** role to reset HWID!',
+                    content: ' You need **Prenium** or **Whitelist** role to reset HWID!',
                     ephemeral: true
                 });
             }
@@ -237,16 +237,16 @@ client.on('interactionCreate', async (interaction) => {
                     .addComponents(
                         new ButtonBuilder()
                             .setCustomId(`confirm_reset_hwid_${singleKey}`)
-                            .setLabel('✅ Confirm Reset')
+                            .setLabel('Confirm Reset')
                             .setStyle(ButtonStyle.Danger),
                         new ButtonBuilder()
                             .setCustomId('cancel_reset_hwid')
-                            .setLabel('❌ Cancel')
+                            .setLabel(' Cancel')
                             .setStyle(ButtonStyle.Secondary)
                     );
                 
                 return await interaction.reply({
-                    content: '⚠️ **Are you sure you want to reset your HWID?**\n\n' +
+                    content: ' **Are you sure you want to reset your HWID?**\n\n' +
                              `Key: \`${singleKey}\`\n` +
                              `Current HWID: \`${keysWithHwid[0].hwid}\`\n\n` +
                              `**Note:** You can reset HWID once every ${cooldownName}!`,
@@ -271,7 +271,7 @@ client.on('interactionCreate', async (interaction) => {
                 );
             
             await interaction.reply({
-                content: '🔑 **Select a key to reset HWID:**\n\n' +
+                content: ' **Select a key to reset HWID:**\n\n' +
                          `You have **${keysWithHwid.length} keys** with HWID registered.\n` +
                          `Cooldown: **${cooldownName}**`,
                 components: [selectMenu],
@@ -288,7 +288,7 @@ client.on('interactionCreate', async (interaction) => {
             
             if (!selectedKeyData || !selectedKeyData.hwid) {
                 return await interaction.update({
-                    content: '❌ Error: Key or HWID not found!',
+                    content: ' Error: Key or HWID not found!',
                     components: []
                 });
             }
@@ -306,7 +306,7 @@ client.on('interactionCreate', async (interaction) => {
                 cooldownNameSelect = '2.5 days';
             } else {
                 return await interaction.update({
-                    content: '❌ You need **Prenium** or **Whitelist** role to reset HWID!',
+                    content: ' You need **Prenium** or **Whitelist** role to reset HWID!',
                     components: []
                 });
             }
@@ -324,7 +324,7 @@ client.on('interactionCreate', async (interaction) => {
                     : `**${daysLeft} days**`;
                 
                 return await interaction.update({
-                    content: `⏳ You can reset HWID again in ${timeDisplay}!`,
+                    content: ` You can reset HWID again in ${timeDisplay}!`,
                     components: []
                 });
             }
@@ -333,16 +333,16 @@ client.on('interactionCreate', async (interaction) => {
                 .addComponents(
                     new ButtonBuilder()
                         .setCustomId(`confirm_reset_hwid_${selectedKey}`)
-                        .setLabel('✅ Confirm Reset')
+                        .setLabel(' Confirm Reset')
                         .setStyle(ButtonStyle.Danger),
                     new ButtonBuilder()
                         .setCustomId('cancel_reset_hwid')
-                        .setLabel('❌ Cancel')
+                        .setLabel(' Cancel')
                         .setStyle(ButtonStyle.Secondary)
                 );
             
             await interaction.update({
-                content: '⚠️ **Are you sure you want to reset HWID for this key?**\n\n' +
+                content: ' **Are you sure you want to reset HWID for this key?**\n\n' +
                          `Key: \`${selectedKey}\`\n` +
                          `Current HWID: \`${selectedKeyData.hwid}\`\n\n` +
                          `**Note:** You can reset HWID once every ${cooldownNameSelect}!`,
@@ -358,7 +358,7 @@ client.on('interactionCreate', async (interaction) => {
             
             if (!keyDataToReset || !keyDataToReset.hwid) {
                 return await interaction.update({
-                    content: '❌ Error: Key or HWID not found!',
+                    content: ' Error: Key or HWID not found!',
                     components: []
                 });
             }
@@ -401,28 +401,28 @@ client.on('interactionCreate', async (interaction) => {
                 cooldown: cooldownDisplay
             });
             
-            console.log(`🔄 HWID Reset: User ${userId} (${interaction.user.tag}) reset HWID for key ${keyToReset}`);
+            console.log(` HWID Reset: User ${userId} (${interaction.user.tag}) reset HWID for key ${keyToReset}`);
             
             await interaction.update({
-                content: '✅ **HWID Reset Successful!**\n\n' +
+                content: ' **HWID Reset Successful!**\n\n' +
                          `Key: \`${keyToReset}\`\n` +
                          `Old HWID: \`${oldHwid}\`\n` +
                          'Your HWID has been cleared. You can now use this key on a new device.\n\n' +
-                         `⏰ Next reset available in: **${cooldownDisplay}**`,
+                         ` Next reset available in: **${cooldownDisplay}**`,
                 components: []
             });
             break;
         
         case 'cancel_reset_hwid':
             await interaction.update({
-                content: '❌ HWID reset cancelled.',
+                content: ' HWID reset cancelled.',
                 components: []
             });
             break;
 
         case 'redeem_key':
             await interaction.reply({
-                content: '🔑 Check DM to Redeem Key!',
+                content: ' Check DM to Redeem Key!',
                 ephemeral: true
             });
             
@@ -439,26 +439,26 @@ client.on('interactionCreate', async (interaction) => {
                 });
                 
                 if (!collected.size) {
-                    return await dm.send('⏱️ Time out! Please try again.');
+                    return await dm.send('⏱ Time out! Please try again.');
                 }
                 
                 const key = collected.first().content.trim();
                 const keyData = await getKey(key);
                 
                 if (!keyData) {
-                    return await dm.send('❌ Key failed!');
+                    return await dm.send(' Key failed!');
                 }
                 
                 if (!keyData.active) {
-                    return await dm.send('❌ Key got blacklist!');
+                    return await dm.send(' Key got blacklist!');
                 }
                 
                 if (keyData.userId) {
-                    return await dm.send('❌ Key already in use by someone else!');
+                    return await dm.send(' Key already in use by someone else!');
                 }
                 
                 if (keyData.expiresAt && Date.now() > keyData.expiresAt) {
-                    return await dm.send('❌ Key expired');
+                    return await dm.send(' Key expired');
                 }
                 
                 // Redeem thành công
@@ -475,7 +475,7 @@ client.on('interactionCreate', async (interaction) => {
 
                 const expiryText = keyData.expiresAt 
                     ? `Expired: ${new Date(keyData.expiresAt).toLocaleString('vi-VN')}`
-                    : '♾️ Infinity';
+                    : ' Infinity';
 
                 // Gán role 'Prenium'
                 let roleResultText = '';
@@ -487,18 +487,18 @@ client.on('interactionCreate', async (interaction) => {
                             const member = await guild.members.fetch(userId);
                             if (member) {
                                 await member.roles.add(role);
-                                roleResultText = '\n✅ You got role **Prenium** in Server!';
+                                roleResultText = '\n You got role **Prenium** in Server!';
                             }
                         } else {
-                            roleResultText = '\n⚠️ Role Prenium not found in server!';
+                            roleResultText = '\n Role Prenium not found in server!';
                         }
                     }
                 } catch (err) {
                     console.error('Role assignment error:', err);
-                    roleResultText = '\n⚠️ Error assigning role. Check bot permissions.';
+                    roleResultText = '\n Error assigning role. Check bot permissions.';
                 }
 
-                await dm.send(`✅ **Redeem Key Work**\nKey: \`${key}\`\n${expiryText}${roleResultText}`);
+                await dm.send(` **Redeem Key Work**\nKey: \`${key}\`\n${expiryText}${roleResultText}`);
             } catch (error) {
                 console.error('DM Error:', error);
                 await interaction.followUp({
@@ -521,7 +521,7 @@ client.on('interactionCreate', async (interaction) => {
             
             const embed = new EmbedBuilder()
                 .setColor('#0099FF')
-                .setTitle('📋 Your Keys')
+                .setTitle(' Your Keys')
                 .setTimestamp();
             
             for (let i = 0; i < userKeys.length; i++) {
@@ -552,14 +552,14 @@ client.on('interactionCreate', async (interaction) => {
             const member = interaction.member;
             if (!member) {
                 return await interaction.reply({
-                    content: '❌ Cannot identify member (must use in server).',
+                    content: ' Cannot identify member (must use in server).',
                     ephemeral: true
                 });
             }
             const hasOwnerRole = member.roles.cache.some(role => role.name === targetRoleName);
             if (!hasOwnerRole) {
                 return await interaction.reply({
-                    content: `❌ You don't have **${targetRoleName}** to use this command!`,
+                    content: ` You don't have **${targetRoleName}** to use this command!`,
                     ephemeral: true
                 });
             }
@@ -568,7 +568,7 @@ client.on('interactionCreate', async (interaction) => {
             apiUrl = apiUrl.replace(/\/+$/, '');
 
             await interaction.reply({
-                content: `➕ **Create key via API:**\n\n**Bash / macOS / Linux**\n\`\`\`bash\ncurl -X POST ${apiUrl}/api/keys/create \\\n  -H "x-api-key: ${API_SECRET}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"duration": 30, "quantity": 1}'\n\`\`\`\n\n**Windows (cmd.exe)**\n\`\`\`\ncurl -X POST "${apiUrl}/api/keys/create" -H "x-api-key: ${API_SECRET}" -H "Content-Type: application/json" -d "{\\\"duration\\\":30,\\\"quantity\\\":1}"\n\`\`\`\n\n**PowerShell**\n\`\`\`powershell\nInvoke-RestMethod -Method Post -Uri "${apiUrl}/api/keys/create" -Headers @{"x-api-key"="${API_SECRET}"; "Content-Type"="application/json"} -Body '{"duration":30,"quantity":1}'\n\`\`\``,
+                content: ` **Create key via API:**\n\n**Bash / macOS / Linux**\n\`\`\`bash\ncurl -X POST ${apiUrl}/api/keys/create \\\n  -H "x-api-key: ${API_SECRET}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"duration": 30, "quantity": 1}'\n\`\`\`\n\n**Windows (cmd.exe)**\n\`\`\`\ncurl -X POST "${apiUrl}/api/keys/create" -H "x-api-key: ${API_SECRET}" -H "Content-Type: application/json" -d "{\\\"duration\\\":30,\\\"quantity\\\":1}"\n\`\`\`\n\n**PowerShell**\n\`\`\`powershell\nInvoke-RestMethod -Method Post -Uri "${apiUrl}/api/keys/create" -Headers @{"x-api-key"="${API_SECRET}"; "Content-Type"="application/json"} -Body '{"duration":30,"quantity":1}'\n\`\`\``,
                 ephemeral: true
             });
             break;
@@ -576,12 +576,12 @@ client.on('interactionCreate', async (interaction) => {
         case 'blacklist_key':
             if (!interaction.member.permissions.has('Administrator')) {
                 return await interaction.reply({
-                    content: '❌ Only Admin can blacklist!',
+                    content: ' Only Admin can blacklist!',
                     ephemeral: true
                 });
             }
             await interaction.reply({
-                content: '🚫 Use API endpoint `/api/keys/blacklist` to disable key.',
+                content: ' Use API endpoint `/api/keys/blacklist` to disable key.',
                 ephemeral: true
             });
             break;
@@ -651,7 +651,7 @@ app.post('/api/keys/create', authenticate, async (req, res) => {
         });
     }
     
-    console.log(`✅ Created ${quantity} key(s)`);
+    console.log(` Created ${quantity} key(s)`);
     
     res.json({
         success: true,
@@ -692,7 +692,7 @@ app.post('/api/keys/blacklist', authenticate, async (req, res) => {
     
     await setKey(key, { ...keyData, active: false });
     
-    console.log(`🚫 Blacklisted key: ${key}`);
+    console.log(` Blacklisted key: ${key}`);
     
     res.json({
         success: true,
@@ -754,7 +754,7 @@ app.post('/api/verify', async (req, res) => {
     
     if (!user.hwid) {
         await setUser(keyData.userId, { ...user, hwid });
-        console.log(`🔐 HWID registered for user ${keyData.userId}`);
+        console.log(` HWID registered for user ${keyData.userId}`);
         return res.json({ success: true, message: 'HWID registered successfully' });
     }
     
@@ -765,7 +765,7 @@ app.post('/api/verify', async (req, res) => {
     return res.json({ success: false, message: 'HWID mismatch' });
 });
 
-// ==================== START ====================
+
 
 async function start() {
     // Connect MongoDB first
@@ -773,7 +773,7 @@ async function start() {
     
     // Start Express server
     app.listen(PORT, () => {
-        console.log(`🚀 API Server running on port ${PORT}`);
+        console.log(` API Server running on port ${PORT}`);
     });
     
     // Login Discord bot
