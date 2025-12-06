@@ -221,10 +221,13 @@ client.on('interactionCreate', async (interaction) => {
                     ephemeral: true
                 });
             }
-            
-            const apiUrl = process.env.RAILWAY_STATIC_URL || `http://localhost:${PORT}`;
+
+            let apiUrl = process.env.RAILWAY_STATIC_URL || `http://localhost:${PORT}`;
+            // Remove any trailing slashes to avoid double-slash issues when concatenating
+            apiUrl = apiUrl.replace(/\/+$/, '');
+
             await interaction.reply({
-                content: `➕ **Tạo key qua API:**\n\n\`\`\`bash\ncurl -X POST ${apiUrl}/api/keys/create \\\n  -H "x-api-key: ${API_SECRET}" \\\n  -H "Content-Type: application/json" \\\n  -d '{"duration": 30, "quantity": 1}'\n\`\`\``,
+                content: `➕ **Tạo key qua API:**\n\n**Bash / macOS / Linux**\n\`\`\`bash\ncurl -X POST ${apiUrl}/api/keys/create \\\n+  -H "x-api-key: ${API_SECRET}" \\\n+  -H "Content-Type: application/json" \\\n+  -d '{"duration": 30, "quantity": 1}'\n\`\`\`\n\n**Windows (cmd.exe)**\n\`\`\`\ncurl -X POST "${apiUrl}/api/keys/create" -H "x-api-key: ${API_SECRET}" -H "Content-Type: application/json" -d \"{\\\"duration\\\":30,\\\"quantity\\\":1}\"\n\`\`\`\n\n**PowerShell (Invoke-RestMethod)**\n\`\`\`powershell\nInvoke-RestMethod -Method Post -Uri "${apiUrl}/api/keys/create" -Headers @{"x-api-key"="${API_SECRET}"; "Content-Type"="application/json"} -Body '{"duration":30,"quantity":1}'\n\`\`\``,
                 ephemeral: true
             });
             break;
