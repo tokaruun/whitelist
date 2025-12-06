@@ -165,12 +165,36 @@ client.on('interactionCreate', async (interaction) => {
                 const user = users.get(userId) || { keys: [], hwid: null };
                 user.keys.push(key);
                 users.set(userId, user);
-                
+
                 const expiryText = keyData.expiresAt 
                     ? `Hết hạn: ${new Date(keyData.expiresAt).toLocaleString('vi-VN')}`
                     : 'Vĩnh viễn';
-                
-                await dm.send(`✅ **Redeem key thành công!**\n🔑 Key: \`${key}\`\n⏰ ${expiryText}`);
+
+                // Thử gán role 'Prenium' trên guild nơi người dùng click button
+                let roleResultText = '';
+                try {
+                    if (interaction.guild) {
+                        const guild = interaction.guild;
+                        // Tìm role theo tên (case-sensitive)
+                        const role = guild.roles.cache.find(r => r.name === 'Prenium');
+                        if (role) {
+                            const member = await guild.members.fetch(userId);
+                            if (member) {
+                                await member.roles.add(role);
+                                roleResultText = '\n🎉 Bạn đã nhận role **Prenium** trên server!';
+                            }
+                        } else {
+                            roleResultText = '\n⚠️ Role `Prenium` không tìm thấy trên server.';
+                        }
+                    } else {
+                        roleResultText = '\n⚠️ Không thể gán role vì không xác định được server (interaction.guild undefined).';
+                    }
+                } catch (err) {
+                    console.error('Role assignment error:', err);
+                    roleResultText = '\n⚠️ Đã xảy ra lỗi khi gán role. Hãy kiểm tra quyền bot (Manage Roles) và thứ tự role.';
+                }
+
+                await dm.send(`✅ **Redeem key thành công!**\n🔑 Key: \`${key}\`\n⏰ ${expiryText}${roleResultText}`);
             } catch (error) {
                 console.error('DM Error:', error);
                 await interaction.followUp({
@@ -196,7 +220,7 @@ client.on('interactionCreate', async (interaction) => {
             
             userKeys.forEach((key, index) => {
                 const keyData = keys.get(key);
-                const status = keyData.active ? '# 🟢 Work' : '🔴 Inactive';
+                const status = keyData.active ? ' 🟢 Work' : '🔴 Inactive';
                 const expires = keyData.expiresAt 
                     ? new Date(keyData.expiresAt).toLocaleString('vi-VN')
                     : 'Vĩnh viễn';
