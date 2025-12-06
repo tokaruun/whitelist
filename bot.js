@@ -4,7 +4,7 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const crypto = require("crypto");
-require("dotenv").config();
+
 
 const { Client, GatewayIntentBits } = require("discord.js");
 
