@@ -184,7 +184,7 @@ client.on('interactionCreate', async (interaction) => {
                                 roleResultText = '\n You role **Prenium** in Sever!';
                             }
                         } else {
-                            roleResultText = '\n⚠️ Role `Prenium` không tìm thấy trên server.';
+                            roleResultText = '\nYou have Role Prenium in Sever!';
                         }
                     } else {
                         roleResultText = '\n⚠️ Không thể gán role vì không xác định được server (interaction.guild undefined).';
