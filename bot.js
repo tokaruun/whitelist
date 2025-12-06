@@ -241,6 +241,8 @@ client.on('interactionCreate', async (interaction) => {
 
         case 'add_key':
 
+            
+            const targetRoleName = 'Whitelist';
             const member = interaction.member;
             if (!member) {
                 return await interaction.reply({
@@ -248,12 +250,12 @@ client.on('interactionCreate', async (interaction) => {
                     ephemeral: true
                 });
             }
-            const hasOwnerRole = member.roles?.cache?.some(r => r.name && r.name.toLowerCase() === 'Whitelist');
+            const hasOwnerRole = member.roles.cache.some(role => role.name === targetRoleName);
             if (!hasOwnerRole) {
                 return await interaction.reply({
-                    content: 'Only Whitelist can add keys',
-                    ephemeral: true
-                });
+                content: `You don't have **${targetRoleName}** to use Command!`,
+                ephemeral: true
+              });
             }
 
             let apiUrl = (process.env.RAILWAY_STATIC_URL) || `http://localhost:${PORT}`;
