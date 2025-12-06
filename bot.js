@@ -176,16 +176,42 @@ client.on('interactionCreate', async (interaction) => {
                 });
             }
             
-            // Check cooldown (30 days)
+            // Check role để xác định cooldown
+            const member = await interaction.guild.members.fetch(userId);
+            let cooldownTime;
+            let cooldownName;
+            
+            if (member.roles.cache.some(role => role.name === 'Whitelist')) {
+                // Role Whitelist: 4 hours
+                cooldownTime = 4 * 60 * 60 * 1000;
+                cooldownName = '4 hours';
+            } else if (member.roles.cache.some(role => role.name === 'Prenium')) {
+                // Role Prenium: 2.5 days
+                cooldownTime = 2.5 * 24 * 60 * 60 * 1000;
+                cooldownName = '2.5 days';
+            } else {
+                // No role: không được reset
+                return await interaction.reply({
+                    content: '❌ You need **Prenium** or **Whitelist** role to reset HWID!',
+                    ephemeral: true
+                });
+            }
+            
+            // Check cooldown
             const lastReset = userData.lastHwidReset || 0;
-            const cooldownTime = 30 * 24 * 60 * 60 * 1000; // 30 days
             const timeSinceReset = Date.now() - lastReset;
             
             if (timeSinceReset < cooldownTime && lastReset !== 0) {
                 const timeLeft = cooldownTime - timeSinceReset;
+                const hoursLeft = Math.ceil(timeLeft / (60 * 60 * 1000));
                 const daysLeft = Math.ceil(timeLeft / (24 * 60 * 60 * 1000));
+                
+                const timeDisplay = hoursLeft < 48 
+                    ? `**${hoursLeft} hours**` 
+                    : `**${daysLeft} days**`;
+                
                 return await interaction.reply({
-                    content: `⏳ You can reset HWID again in **${daysLeft} days**!`,
+                    content: `⏳ You can reset HWID again in ${timeDisplay}!`,
                     ephemeral: true
                 });
             }
@@ -206,7 +232,7 @@ client.on('interactionCreate', async (interaction) => {
             await interaction.reply({
                 content: '⚠️ **Are you sure you want to reset your HWID?**\n\n' +
                          `Current HWID: \`${userData.hwid}\`\n\n` +
-                         '**Note:** You can only reset HWID once every 30 days!',
+                         `**Note:** You can reset HWID once every ${cooldownName}!`,
                 components: [confirmRow],
                 ephemeral: true
             });
@@ -220,6 +246,18 @@ client.on('interactionCreate', async (interaction) => {
                     content: '❌ Error: No HWID found!',
                     components: []
                 });
+            }
+            
+            // Check role lại để xác định cooldown khi confirm
+            const memberConfirm = await interaction.guild.members.fetch(userId);
+            let cooldownDisplay;
+            
+            if (memberConfirm.roles.cache.some(role => role.name === 'Whitelist')) {
+                cooldownDisplay = '4 hours';
+            } else if (memberConfirm.roles.cache.some(role => role.name === 'Prenium')) {
+                cooldownDisplay = '2.5 days';
+            } else {
+                cooldownDisplay = 'N/A';
             }
             
             const oldHwid = userToReset.hwid;
@@ -236,9 +274,10 @@ client.on('interactionCreate', async (interaction) => {
             const logCollection = db.collection('hwid_reset_logs');
             await logCollection.insertOne({
                 userId: userId,
+                userTag: interaction.user.tag,
                 oldHwid: oldHwid,
                 resetAt: Date.now(),
-                resetBy: interaction.user.tag
+                cooldown: cooldownDisplay
             });
             
             console.log(`🔄 HWID Reset: User ${userId} (${interaction.user.tag}) reset HWID from ${oldHwid}`);
@@ -247,7 +286,7 @@ client.on('interactionCreate', async (interaction) => {
                 content: '✅ **HWID Reset Successful!**\n\n' +
                          `Old HWID: \`${oldHwid}\`\n` +
                          'Your HWID has been cleared. You can now use your key on a new device.\n\n' +
-                         '⏰ Next reset available in: **30 days**',
+                         `⏰ Next reset available in: **${cooldownDisplay}**`,
                 components: []
             });
             break;
