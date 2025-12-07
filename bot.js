@@ -200,12 +200,12 @@ client.on('interactionCreate', async (interaction) => {
             if (memberReset.roles.cache.some(role => role.name === 'Whitelist')) {
                 cooldownTime = 4 * 60 * 60 * 1000;
                 cooldownName = '4 hours';
-            } else if (memberReset.roles.cache.some(role => role.name === 'Prenium')) {
+            } else if (memberReset.roles.cache.some(role => role.name === 'Premium')) {
                 cooldownTime = 2.5 * 24 * 60 * 60 * 1000;
                 cooldownName = '2.5 days';
             } else {
                 return await interaction.reply({
-                    content: ' You need **Prenium** or **Whitelist** role to reset HWID!',
+                    content: ' You need **Premium** or **Whitelist** role to reset HWID!',
                     ephemeral: true
                 });
             }
@@ -301,12 +301,12 @@ client.on('interactionCreate', async (interaction) => {
             if (memberSelect.roles.cache.some(role => role.name === 'Whitelist')) {
                 cooldownTimeSelect = 4 * 60 * 60 * 1000;
                 cooldownNameSelect = '4 hours';
-            } else if (memberSelect.roles.cache.some(role => role.name === 'Prenium')) {
+            } else if (memberSelect.roles.cache.some(role => role.name === 'Premium')) {
                 cooldownTimeSelect = 2.5 * 24 * 60 * 60 * 1000;
                 cooldownNameSelect = '2.5 days';
             } else {
                 return await interaction.update({
-                    content: ' You need **Prenium** or **Whitelist** role to reset HWID!',
+                    content: ' You need **Premium** or **Whitelist** role to reset HWID!',
                     components: []
                 });
             }
@@ -369,7 +369,7 @@ client.on('interactionCreate', async (interaction) => {
             
             if (memberConfirm.roles.cache.some(role => role.name === 'Whitelist')) {
                 cooldownDisplay = '4 hours';
-            } else if (memberConfirm.roles.cache.some(role => role.name === 'Prenium')) {
+            } else if (memberConfirm.roles.cache.some(role => role.name === 'Premium')) {
                 cooldownDisplay = '2.5 days';
             } else {
                 cooldownDisplay = 'N/A';
@@ -477,20 +477,20 @@ client.on('interactionCreate', async (interaction) => {
                     ? `Expired: ${new Date(keyData.expiresAt).toLocaleString('vi-VN')}`
                     : ' Infinity';
 
-                // Gán role 'Prenium'
+                // Gán role 'Premium'
                 let roleResultText = '';
                 try {
                     if (interaction.guild) {
                         const guild = interaction.guild;
-                        const role = guild.roles.cache.find(r => r.name === 'Prenium');
+                        const role = guild.roles.cache.find(r => r.name === 'Premium');
                         if (role) {
                             const member = await guild.members.fetch(userId);
                             if (member) {
                                 await member.roles.add(role);
-                                roleResultText = '\n You got role **Prenium** in Server!';
+                                roleResultText = '\n You got role **Premium** in Server!';
                             }
                         } else {
-                            roleResultText = '\n Role Prenium not found in server!';
+                            roleResultText = '\n Role Premium not found in server!';
                         }
                     }
                 } catch (err) {
