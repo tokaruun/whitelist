@@ -1,5 +1,4 @@
-// bot.js - Clean refactor single-file (slash + !panel kept)
-// Node 18+ tested (syntax clean)
+
 
 const {
   Client,
@@ -92,30 +91,29 @@ client.on('messageCreate', async (message) => {
 
   const embed = new EmbedBuilder()
     .setColor('#5865F2')
-    .setTitle('✨ Kemu Hub Whitelist Panel')
-    .setDescription('Quản lý whitelist của bạn bằng các nút bên dưới.')
+    .setTitle(' **Kemu Hub Whitelist Panel**')
+    .setDescription('Button Whitelist .')
     .setThumbnail(client.user?.displayAvatarURL?.() || null)
     .addFields(
-      { name: '📌 Chức năng', value: 'Reset HWID / Redeem Key / Xem Key' },
-      { name: '🛡️ Bảo mật', value: 'Tất cả thao tác đều private & ephemeral.' }
+      { name: 'Function', value: 'Reset HWID / Redeem Key / Manager Key' },
     )
     .setFooter({ text: 'Kemu Hub • Premium System' })
     .setTimestamp();
 
   const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('resethwid').setLabel('🔄 Reset HWID').setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId('redeem_key').setLabel('🎟️ Redeem').setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId('manage_key').setLabel('🗂️ Manage').setStyle(ButtonStyle.Primary)
+    new ButtonBuilder().setCustomId('resethwid').setLabel(' Reset HWID').setStyle(ButtonStyle.Danger),
+    new ButtonBuilder().setCustomId('redeem_key').setLabel(' Redeem').setStyle(ButtonStyle.Success),
+    new ButtonBuilder().setCustomId('manage_key').setLabel(' Manage').setStyle(ButtonStyle.Primary)
   );
 
   const dropdown = new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder()
       .setCustomId('panel_dropdown')
-      .setPlaceholder('Chọn chức năng…')
+      .setPlaceholder('Select button')
       .addOptions([
-        { label: 'Reset HWID', value: 'dd_reset', emoji: '🔄' },
-        { label: 'Redeem Key', value: 'dd_redeem', emoji: '🎟️' },
-        { label: 'Manage Key', value: 'dd_manage', emoji: '🗂️' }
+        { label: 'Reset HWID', value: 'dd_reset', emoji: '' },
+        { label: 'Redeem Key', value: 'dd_redeem', emoji: '' },
+        { label: 'Manage Key', value: 'dd_manage', emoji: '' }
       ])
   );
 
@@ -195,7 +193,7 @@ client.on('interactionCreate', async (interaction) => {
 
         const embed = new EmbedBuilder()
           .setColor('#ff4444')
-          .setTitle('⛔ Key Blacklisted')
+          .setTitle(' Key Blacklisted')
           .addFields(
             { name: 'Key', value: `${key}` },
             { name: 'Blacklisted By', value: `<@${interaction.user.id}>` },
@@ -257,7 +255,7 @@ client.on('interactionCreate', async (interaction) => {
 
         const embed = new EmbedBuilder()
           .setColor('#00cc88')
-          .setTitle('✅ Keys Created')
+          .setTitle(' Keys Created')
           .setDescription(`Created **${quantity}** keys (${duration === 0 ? 'lifetime' : duration + ' days'})`)
           .setTimestamp();
 
@@ -314,7 +312,7 @@ client.on('interactionCreate', async (interaction) => {
 
        const embed = new EmbedBuilder()
       .setColor('#33aaee')
-      .setTitle('🎉 Key Redeemed')
+      .setTitle(' Key Redeemed')
       .addFields(
        { name: 'Key', value: `\`${key}\`` },
        { name: 'User', value: `<@${interaction.user.id}>` },
@@ -380,7 +378,7 @@ client.on('interactionCreate', async (interaction) => {
 
         const embed = new EmbedBuilder()
           .setColor('#0099FF')
-          .setTitle('🗂️ Your Keys')
+          .setTitle(' Your Keys')
           .setDescription(`You have **${user.keys.length}** key(s). Select one below.`)
           .setTimestamp();
 
@@ -484,9 +482,9 @@ client.on('interactionCreate', async (interaction) => {
 
       const embed = new EmbedBuilder()
         .setColor(data.active ? '#22dd99' : '#dd4444')
-        .setTitle('🔍 Key Details')
+        .setTitle(' Key Details')
         .addFields(
-          { name: 'Key', value: `\`${key}\`` },
+          { name: 'Key', value: ```\`${key}\```` },
           { name: 'Status', value: data.active ? 'Active' : 'Inactive', inline: true },
           { name: 'Expires', value: data.expiresAt ? new Date(data.expiresAt).toLocaleString() : 'Lifetime', inline: true },
           { name: 'HWID', value: data.hwid || 'Not registered', inline: false },
