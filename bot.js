@@ -307,15 +307,22 @@ client.on('interactionCreate', async (interaction) => {
           redeemedAt: Date.now()
         });
 
-        const embed = new EmbedBuilder()
-          .setColor('#33aaee')
-          .setTitle('🎉 Key Redeemed')
-          .addFields(
-            { name: 'Key', value: `\`${key}\`` },
-            { name: 'User', value: `<@${interaction.user.id}>` },
-            { name: 'Role', value: roleMsg }
-          )
-          .setTimestamp();
+       let expireText = 'Lifetime';
+       if (keyData.expiresAt) {
+       expireText = new Date(keyData.expiresAt).toLocaleString('vi-VN');
+       }
+
+       const embed = new EmbedBuilder()
+      .setColor('#33aaee')
+      .setTitle('🎉 Key Redeemed')
+      .addFields(
+       { name: 'Key', value: `\`${key}\`` },
+       { name: 'User', value: `<@${interaction.user.id}>` },
+       { name: 'Role', value: roleMsg },
+       { name: 'Expiration', value: expireText }
+      )
+       .setTimestamp();
+
 
         return interaction.reply({ embeds: [embed], ephemeral: true });
       }
