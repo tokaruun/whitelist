@@ -64,7 +64,7 @@ async function connectMongoDB() {
   }
 }
 
-// DB helpers
+
 async function getKey(key) {
   return await keysCollection.findOne({ key });
 }
@@ -84,7 +84,7 @@ function generateKey() {
   return crypto.randomBytes(16).toString('hex').toUpperCase();
 }
 
-// ------------------ Message command: !panel (kept) ------------------
+
 client.on('messageCreate', async (message) => {
   if (message.author.bot) return;
   if (message.content !== '!panel') return;
@@ -120,7 +120,7 @@ client.on('messageCreate', async (message) => {
   await message.channel.send({ embeds: [embed], components: [row, dropdown] });
 });
 
-// ------------------ Slash commands definition (array) ------------------
+
 const slashCommands = [
   new SlashCommandBuilder().setName('stats').setDescription('Show bot statistics'),
   new SlashCommandBuilder().setName('blacklist').setDescription('Blacklist a key')
@@ -134,7 +134,7 @@ const slashCommands = [
   new SlashCommandBuilder().setName('managekey').setDescription('View your keys')
 ];
 
-// register function (called on ready)
+
 async function registerSlashCommands() {
   try {
     const rest = new REST({ version: '10' }).setToken(DISCORD_TOKEN);
@@ -145,14 +145,14 @@ async function registerSlashCommands() {
   }
 }
 
-// ------------------ Single interaction handler ------------------
+
 client.on('interactionCreate', async (interaction) => {
   try {
-    // -------------------- Handle chat input /slash commands --------------------
+
     if (interaction.isChatInputCommand()) {
       const commandName = interaction.commandName;
 
-      // /stats
+
       if (commandName === 'stats') {
         const totalKeys = await keysCollection.countDocuments();
         const totalUsers = await usersCollection.countDocuments();
@@ -168,7 +168,7 @@ client.on('interactionCreate', async (interaction) => {
         return await interaction.reply({ embeds: [embed], ephemeral: true });
       }
 
-      // /blacklist
+
       if (commandName === 'blacklist') {
         const key = interaction.options.getString('key');
         const member = await interaction.guild.members.fetch(interaction.user.id);
@@ -181,7 +181,7 @@ client.on('interactionCreate', async (interaction) => {
 
         await setKey(key, { ...keyData, active: false, blacklistedAt: Date.now(), blacklistedBy: interaction.user.id });
 
-        // log
+
         const logCollection = db.collection('blacklist_logs');
         await logCollection.insertOne({
           key,
@@ -204,7 +204,7 @@ client.on('interactionCreate', async (interaction) => {
         return interaction.reply({ embeds: [embed], ephemeral: true });
       }
 
-      // /addkey
+
       if (commandName === 'addkey') {
         const quantity = interaction.options.getInteger('quantity');
         const duration = interaction.options.getInteger('duration');
@@ -484,7 +484,7 @@ client.on('interactionCreate', async (interaction) => {
         .setColor(data.active ? '#22dd99' : '#dd4444')
         .setTitle(' Key Details')
         .addFields(
-          { name: 'Key', value: ```\`${key}\```` },
+          { name: 'Key', value: ```${key}``` },
           { name: 'Status', value: data.active ? 'Active' : 'Inactive', inline: true },
           { name: 'Expires', value: data.expiresAt ? new Date(data.expiresAt).toLocaleString() : 'Lifetime', inline: true },
           { name: 'HWID', value: data.hwid || 'Not registered', inline: false },
@@ -493,7 +493,7 @@ client.on('interactionCreate', async (interaction) => {
         .setTimestamp();
 
       const backRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('slash_manage_back').setLabel('⬅️ Back').setStyle(ButtonStyle.Secondary)
+        new ButtonBuilder().setCustomId('slash_manage_back').setLabel(' Back').setStyle(ButtonStyle.Secondary)
       );
 
       return interaction.reply({ embeds: [embed], components: [backRow], ephemeral: true });
@@ -600,7 +600,7 @@ app.post('/api/verify', async (req, res) => {
   return res.json({ success: false, message: 'HWID mismatch' });
 });
 
-// ------------------ Start function ------------------
+
 async function start() {
   await connectMongoDB();
   app.listen(PORT, () => console.log(`API running on port ${PORT}`));
