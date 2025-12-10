@@ -485,7 +485,7 @@ client.on('interactionCreate', async (interaction) => {
         .setTitle(' Key Details')
         .addFields(
           { name: 'Key', value: `\`\`\`${key}\`\`\`` },
-          { name: 'Status', value: data.active ? 'Active' : 'Inactive', inline: true },
+          { name: 'Status', value: data.active ? 'Active' : 'No work ( Blacklisted )', inline: true },
           { name: 'Expires', value: data.expiresAt ? new Date(data.expiresAt).toLocaleString() : 'Lifetime', inline: true },
           { name: 'HWID', value: data.hwid || 'Not registered', inline: false },
           { name: 'Redeemed', value: data.redeemedAt ? new Date(data.redeemedAt).toLocaleString() : 'Not redeemed', inline: false }
