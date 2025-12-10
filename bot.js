@@ -111,9 +111,9 @@ client.on('messageCreate', async (message) => {
       .setCustomId('panel_dropdown')
       .setPlaceholder('Select button')
       .addOptions([
-        { label: 'Reset HWID', value: 'dd_reset', emoji: '' },
-        { label: 'Redeem Key', value: 'dd_redeem', emoji: '' },
-        { label: 'Manage Key', value: 'dd_manage', emoji: '' }
+        { label: 'Reset HWID', value: 'dd_reset' },
+        { label: 'Redeem Key', value: 'dd_redeem' },
+        { label: 'Manage Key', value: 'dd_manage' }
       ])
   );
 
