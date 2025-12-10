@@ -484,7 +484,7 @@ client.on('interactionCreate', async (interaction) => {
         .setColor(data.active ? '#22dd99' : '#dd4444')
         .setTitle(' Key Details')
         .addFields(
-          { name: 'Key', value: `\`${key}\`` },
+          { name: 'Key', value: `\`\`\`${key}\`\`\`` },
           { name: 'Status', value: data.active ? 'Active' : 'Inactive', inline: true },
           { name: 'Expires', value: data.expiresAt ? new Date(data.expiresAt).toLocaleString() : 'Lifetime', inline: true },
           { name: 'HWID', value: data.hwid || 'Not registered', inline: false },
