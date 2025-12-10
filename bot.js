@@ -197,14 +197,11 @@ client.on('interactionCreate', async (interaction) => {
             
             // Check role để xác định cooldown
             const memberReset = await interaction.guild.members.fetch(userId);
-            let cooldownTime;
             let cooldownName;
             
             if (memberReset.roles.cache.some(role => role.name === 'Whitelist')) {
-                cooldownTime = 4 * 60 * 60 * 1000;
                 cooldownName = '4 hours';
             } else if (memberReset.roles.cache.some(role => role.name === 'Prenium')) {
-                cooldownTime = 2.5 * 24 * 60 * 60 * 1000;
                 cooldownName = '2.5 days';
             } else {
                 return await interaction.reply({
@@ -213,55 +210,7 @@ client.on('interactionCreate', async (interaction) => {
                 });
             }
             
-            // Nếu chỉ có 1 key, skip selection
-            if (keysWithHwid.length === 1) {
-                const singleKey = keysWithHwid[0].key;
-                
-                // Check cooldown
-                const lastReset = userDataReset.lastHwidReset || 0;
-                const timeSinceReset = Date.now() - lastReset;
-                
-                if (timeSinceReset < cooldownTime && lastReset !== 0) {
-                    const timeLeft = cooldownTime - timeSinceReset;
-                    const hoursLeft = Math.ceil(timeLeft / (60 * 60 * 1000));
-                    const daysLeft = Math.ceil(timeLeft / (24 * 60 * 60 * 1000));
-                    
-                    const timeDisplay = hoursLeft < 48 
-                        ? `**${hoursLeft} hours**` 
-                        : `**${daysLeft} days**`;
-                    
-                    return await interaction.reply({
-                        content: `⏳ You can reset HWID again in ${timeDisplay}!`,
-                        ephemeral: true
-                    });
-                }
-                
-                const confirmRow = new ActionRowBuilder()
-                    .addComponents(
-                        new ButtonBuilder()
-                            .setCustomId('confirm_reset_hwid')
-                            .setLabel('✅ Confirm Reset')
-                            .setStyle(ButtonStyle.Danger),
-                        new ButtonBuilder()
-                            .setCustomId('cancel_reset_hwid')
-                            .setLabel('❌ Cancel')
-                            .setStyle(ButtonStyle.Secondary)
-                    );
-                
-                // Lưu key vào pending resets
-                pendingResets.set(userId, { key: singleKey, timestamp: Date.now() });
-                
-                return await interaction.reply({
-                    content: '⚠️ **Are you sure you want to reset your HWID?**\n\n' +
-                             `Key: \`${singleKey}\`\n` +
-                             `Current HWID: \`${keysWithHwid[0].hwid}\`\n\n` +
-                             `**Note:** You can reset HWID once every ${cooldownName}!`,
-                    components: [confirmRow],
-                    ephemeral: true
-                });
-            }
-            
-            // Nếu có nhiều keys, show selection menu
+            // Luôn hiện dropdown menu (dù 1 key hay nhiều keys)
             const resetKeyMenu = new ActionRowBuilder()
                 .addComponents(
                     new StringSelectMenuBuilder()
@@ -278,7 +227,7 @@ client.on('interactionCreate', async (interaction) => {
             
             await interaction.reply({
                 content: '🔑 **Select a key to reset HWID:**\n\n' +
-                         `You have **${keysWithHwid.length} keys** with HWID registered.\n` +
+                         `You have **${keysWithHwid.length} key(s)** with HWID registered.\n` +
                          `Cooldown: **${cooldownName}**`,
                 components: [resetKeyMenu],
                 ephemeral: true
