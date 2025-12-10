@@ -534,37 +534,10 @@ if (interaction.isButton() && interaction.customId.startsWith('slash_delete_key_
   });
 }
 
-
-    // manage back button -> re-show menu
-    if (interaction.isButton() && interaction.customId === 'slash_manage_back') {
-      const user = await getUser(interaction.user.id);
-      const menu = new ActionRowBuilder().addComponents(
-        new StringSelectMenuBuilder()
-          .setCustomId('slash_manage_select')
-          .setPlaceholder('Select key')
-          .addOptions((user.keys || []).map((k, i) => ({ label: `Key #${i + 1}`, value: k })))
-      );
-      return interaction.reply({ content: 'Your keys:', components: [menu], ephemeral: true });
-    }
-
-    // panel buttons (from !panel message)
-    if (interaction.isButton() && interaction.customId === 'resethwid') {
-      return interaction.reply({ content: 'Use /resethwid (slash) to reset HWID.', ephemeral: true });
-    }
-    if (interaction.isButton() && interaction.customId === 'redeem_key') {
-      return interaction.reply({ content: 'Use /redeem <key> (slash) to redeem.', ephemeral: true });
-    }
-    if (interaction.isButton() && interaction.customId === 'manage_key') {
-      return interaction.reply({ content: 'Use /managekey (slash) to manage keys.', ephemeral: true });
-    }
-  } catch (err) {
-    console.error('interaction handler error:', err);
-    if (interaction && !interaction.replied) {
-      try { await interaction.reply({ content: 'An error occurred.', ephemeral: true }); } catch (e) {}
-    }
-  }
+} catch (err) {
+  console.error(err);
+}
 });
-
 // ------------------ API endpoints (kept) ------------------
 function authenticate(req, res, next) {
   if (req.headers['x-api-key'] !== API_SECRET) return res.status(401).json({ error: 'Unauthorized' });
