@@ -219,6 +219,7 @@ client.on('messageCreate', async (message) => {
             .setTimestamp();
         
         await message.reply({ embeds: [embed] });
+    }
     if (message.content.startsWith('!addkey ')) {
 
         const member = message.guild.members.cache.get(message.author.id);
@@ -364,8 +365,8 @@ client.on('messageCreate', async (message) => {
                 content: ' Error creating keys! Please try again.'
             });
         }
-      }
     }
+    
 });
 
 client.on('interactionCreate', async (interaction) => {
