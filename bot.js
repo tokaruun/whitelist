@@ -142,11 +142,82 @@ client.on('messageCreate', async (message) => {
         
         const embed = new EmbedBuilder()
             .setColor('#00FF00')
-            .setTitle(' Bot Statistics')
+            .setTitle('📊 Bot Statistics')
             .addFields(
                 { name: ' Total Keys', value: totalKeys.toString(), inline: true },
                 { name: ' Total Users', value: totalUsers.toString(), inline: true },
                 { name: ' Uptime', value: `${Math.floor(client.uptime / 1000 / 60)} minutes`, inline: true }
+            )
+            .setTimestamp();
+        
+        await message.reply({ embeds: [embed] });
+    }
+    
+    // ← THÊM ĐOẠN NÀY VÀO ĐÂY
+    if (message.content.startsWith('!blacklist ')) {
+        // Check role Whitelist
+        const member = message.guild.members.cache.get(message.author.id);
+        
+        if (!member.roles.cache.some(role => role.name === 'Whitelist')) {
+            return await message.reply({
+                content: ' You need **Whitelist** role to use this command!'
+            });
+        }
+        
+        // Lấy key từ message
+        const key = message.content.split(' ')[1]?.trim();
+        
+        if (!key) {
+            return await message.reply({
+                content: '❌ Please provide a key!\n**Usage:** `!blacklist <KEY>`'
+            });
+        }
+        
+        // Kiểm tra key có tồn tại không
+        const keyData = await getKey(key);
+        
+        if (!keyData) {
+            return await message.reply({
+                content: `❌ Key not found: \`${key}\``
+            });
+        }
+        
+        // Kiểm tra key đã bị blacklist chưa
+        if (!keyData.active) {
+            return await message.reply({
+                content: `⚠️ Key \`${key}\` is already blacklisted!`
+            });
+        }
+        
+        // Blacklist key
+        await setKey(key, {
+            ...keyData,
+            active: false,
+            blacklistedAt: Date.now(),
+            blacklistedBy: message.author.id
+        });
+        
+        // Log to MongoDB
+        const logCollection = db.collection('blacklist_logs');
+        await logCollection.insertOne({
+            key: key,
+            blacklistedBy: message.author.id,
+            blacklistedByTag: message.author.tag,
+            blacklistedAt: Date.now(),
+            previousOwner: keyData.userId
+        });
+        
+        console.log(`🚫 Key blacklisted: ${key} by ${message.author.tag}`);
+        
+        // Tạo embed response
+        const embed = new EmbedBuilder()
+            .setColor('#FF0000')
+            .setTitle('🚫 Key Blacklisted')
+            .addFields(
+                { name: 'Key', value: `\`${key}\``, inline: false },
+                { name: 'Blacklisted By', value: `${message.author.tag}`, inline: true },
+                { name: 'Previous Owner', value: keyData.userId ? `<@${keyData.userId}>` : 'Not redeemed', inline: true },
+                { name: 'Status', value: '🔴 Inactive', inline: true }
             )
             .setTimestamp();
         
