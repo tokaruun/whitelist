@@ -101,10 +101,10 @@ client.on('ready', async () => {
 client.on('messageCreate', async (message) => {
     if (message.author.bot) return;
     
-    if (message.content === '!whitelist') {
+    if (message.content === '!panel') {
         const embed = new EmbedBuilder()
             .setColor('#FF1744')
-            .setTitle('Whitelist Panel D4Vd HuB')
+            .setTitle('Whitelist Panel Kemu HuB')
             .setDescription('Use the buttons below to manage your keys.')
             .setThumbnail(client.user.displayAvatarURL())
             .setTimestamp();
