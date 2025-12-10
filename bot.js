@@ -551,31 +551,118 @@ client.on('interactionCreate', async (interaction) => {
                 });
             }
             
+            // Tạo dropdown menu để chọn key
+            const selectMenu = new ActionRowBuilder()
+                .addComponents(
+                    new StringSelectMenuBuilder()
+                        .setCustomId('view_key_details')
+                        .setPlaceholder('Select a key to view details')
+                        .addOptions(
+                            userKeys.map((key, index) => ({
+                                label: `Key #${index + 1}`,
+                                description: `${key.substring(0, 20)}...`,
+                                value: key
+                            }))
+                        )
+                );
+            
             const embed = new EmbedBuilder()
                 .setColor('#0099FF')
                 .setTitle('📋 Your Keys')
+                .setDescription(`You have **${userKeys.length}** key(s).\nSelect a key below to view details.`)
                 .setTimestamp();
-            
-            for (let i = 0; i < userKeys.length; i++) {
-                const key = userKeys[i];
-                const keyData = await getKey(key);
-                if (keyData) {
-                    const status = keyData.active ? '🟢 Active' : '🔴 Inactive';
-                    const expires = keyData.expiresAt 
-                        ? new Date(keyData.expiresAt).toLocaleString('vi-VN')
-                        : 'Forever';
-                    
-                    embed.addFields({
-                        name: `Key #${i + 1}`,
-                        value: `\`${key}\`\n${status} | Expires: ${expires}`,
-                        inline: false
-                    });
-                }
-            }
             
             await interaction.reply({
                 embeds: [embed],
+                components: [selectMenu],
                 ephemeral: true
+            });
+            break;
+        
+        case 'view_key_details':
+            if (!interaction.isStringSelectMenu()) return;
+            
+            const selectedKeyDetail = interaction.values[0];
+            const keyDataDetail = await getKey(selectedKeyDetail);
+            
+            if (!keyDataDetail) {
+                return await interaction.update({
+                    content: '❌ Key not found!',
+                    components: [],
+                    embeds: []
+                });
+            }
+            
+            const status = keyDataDetail.active ? '🟢 Active' : '🔴 Inactive';
+            const expires = keyDataDetail.expiresAt 
+                ? new Date(keyDataDetail.expiresAt).toLocaleString('vi-VN')
+                : '♾️ Forever';
+            const hwid = keyDataDetail.hwid || '❌ Not registered yet';
+            const redeemed = keyDataDetail.redeemedAt
+                ? new Date(keyDataDetail.redeemedAt).toLocaleString('vi-VN')
+                : '❌ Not redeemed';
+            
+            const detailEmbed = new EmbedBuilder()
+                .setColor(keyDataDetail.active ? '#00FF00' : '#FF0000')
+                .setTitle('🔑 Key Details')
+                .addFields(
+                    { name: 'Key', value: `\`${selectedKeyDetail}\``, inline: false },
+                    { name: 'Status', value: status, inline: true },
+                    { name: 'Expires', value: expires, inline: true },
+                    { name: 'HWID', value: `\`${hwid}\``, inline: false },
+                    { name: 'Redeemed At', value: redeemed, inline: false }
+                )
+                .setTimestamp();
+            
+            const backButton = new ActionRowBuilder()
+                .addComponents(
+                    new ButtonBuilder()
+                        .setCustomId('back_to_manage_key')
+                        .setLabel('◀️ Back')
+                        .setStyle(ButtonStyle.Secondary)
+                );
+            
+            await interaction.update({
+                embeds: [detailEmbed],
+                components: [backButton]
+            });
+            break;
+        
+        case 'back_to_manage_key':
+            const userBack = await getUser(userId);
+            const userKeysBack = userBack?.keys || [];
+            
+            if (userKeysBack.length === 0) {
+                return await interaction.update({
+                    content: '❌ You don\'t have Keys',
+                    components: [],
+                    embeds: []
+                });
+            }
+            
+            const selectMenuBack = new ActionRowBuilder()
+                .addComponents(
+                    new StringSelectMenuBuilder()
+                        .setCustomId('view_key_details')
+                        .setPlaceholder('Select a key to view details')
+                        .addOptions(
+                            userKeysBack.map((key, index) => ({
+                                label: `Key #${index + 1}`,
+                                description: `${key.substring(0, 20)}...`,
+                                value: key
+                            }))
+                        )
+                );
+            
+            const embedBack = new EmbedBuilder()
+                .setColor('#0099FF')
+                .setTitle('📋 Your Keys')
+                .setDescription(`You have **${userKeysBack.length}** key(s).\nSelect a key below to view details.`)
+                .setTimestamp();
+            
+            await interaction.update({
+                embeds: [embedBack],
+                components: [selectMenuBack]
             });
             break;
 
