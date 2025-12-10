@@ -498,7 +498,7 @@ if (interaction.isStringSelectMenu() && interaction.customId === 'slash_manage_s
     .addComponents(
       new ButtonBuilder()
         .setCustomId('slash_manage_back')
-        .setLabel('⬅️ Back')
+        .setLabel(' Back')
         .setStyle(ButtonStyle.Secondary)
     );
 
@@ -506,7 +506,7 @@ if (interaction.isStringSelectMenu() && interaction.customId === 'slash_manage_s
     row.addComponents(
       new ButtonBuilder()
         .setCustomId(`slash_delete_key_${key}`)
-        .setLabel('🗑 Delete Key')
+        .setLabel(' Delete Key')
         .setStyle(ButtonStyle.Danger)
     );
   }
@@ -529,7 +529,7 @@ if (interaction.isButton() && interaction.customId.startsWith('slash_delete_key_
 
   // reply
   return interaction.reply({
-    content: `🗑 **Key deleted from your account:**\n\`\`\`${key}\`\`\``,
+    content: ` **Key deleted from your account:**\n\`\`\`${key}\`\`\``,
     ephemeral: true
   });
 }
