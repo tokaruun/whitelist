@@ -28,6 +28,9 @@ let db;
 let keysCollection;
 let usersCollection;
 
+// Lưu temporary data cho reset HWID
+const pendingResets = new Map(); // userId -> { key, timestamp }
+
 async function connectMongoDB() {
     try {
         const mongoClient = new MongoClient(MONGODB_URI);
@@ -236,7 +239,7 @@ client.on('interactionCreate', async (interaction) => {
                 const confirmRow = new ActionRowBuilder()
                     .addComponents(
                         new ButtonBuilder()
-                            .setCustomId(`confirm_reset_hwid_${singleKey}`)
+                            .setCustomId('confirm_reset_hwid')
                             .setLabel('✅ Confirm Reset')
                             .setStyle(ButtonStyle.Danger),
                         new ButtonBuilder()
@@ -244,6 +247,9 @@ client.on('interactionCreate', async (interaction) => {
                             .setLabel('❌ Cancel')
                             .setStyle(ButtonStyle.Secondary)
                     );
+                
+                // Lưu key vào pending resets
+                pendingResets.set(userId, { key: singleKey, timestamp: Date.now() });
                 
                 return await interaction.reply({
                     content: '⚠️ **Are you sure you want to reset your HWID?**\n\n' +
@@ -332,7 +338,7 @@ client.on('interactionCreate', async (interaction) => {
             const confirmRowSelect = new ActionRowBuilder()
                 .addComponents(
                     new ButtonBuilder()
-                        .setCustomId(`confirm_reset_hwid_${selectedKey}`)
+                        .setCustomId('confirm_reset_hwid')
                         .setLabel('✅ Confirm Reset')
                         .setStyle(ButtonStyle.Danger),
                     new ButtonBuilder()
@@ -340,6 +346,9 @@ client.on('interactionCreate', async (interaction) => {
                         .setLabel('❌ Cancel')
                         .setStyle(ButtonStyle.Secondary)
                 );
+            
+            // Lưu key vào pending resets
+            pendingResets.set(userId, { key: selectedKey, timestamp: Date.now() });
             
             await interaction.update({
                 content: '⚠️ **Are you sure you want to reset HWID for this key?**\n\n' +
@@ -351,12 +360,31 @@ client.on('interactionCreate', async (interaction) => {
             break;
         
         case 'confirm_reset_hwid':
-            // Extract key from customId (format: confirm_reset_hwid_KEYVALUE)
-            const keyToReset = interaction.customId.replace('confirm_reset_hwid_', '');
+            // Lấy key từ pending resets
+            const pendingReset = pendingResets.get(userId);
+            
+            if (!pendingReset) {
+                return await interaction.update({
+                    content: '❌ Error: Reset session expired. Please try again.',
+                    components: []
+                });
+            }
+            
+            // Check timeout (5 minutes)
+            if (Date.now() - pendingReset.timestamp > 5 * 60 * 1000) {
+                pendingResets.delete(userId);
+                return await interaction.update({
+                    content: '⏱️ Reset session expired. Please try again.',
+                    components: []
+                });
+            }
+            
+            const keyToReset = pendingReset.key;
             const userToReset = await getUser(userId);
             const keyDataToReset = await getKey(keyToReset);
             
             if (!keyDataToReset || !keyDataToReset.hwid) {
+                pendingResets.delete(userId);
                 return await interaction.update({
                     content: '❌ Error: Key or HWID not found!',
                     components: []
@@ -401,6 +429,9 @@ client.on('interactionCreate', async (interaction) => {
                 cooldown: cooldownDisplay
             });
             
+            // Clear pending reset
+            pendingResets.delete(userId);
+            
             console.log(`🔄 HWID Reset: User ${userId} (${interaction.user.tag}) reset HWID for key ${keyToReset}`);
             
             await interaction.update({
@@ -414,6 +445,7 @@ client.on('interactionCreate', async (interaction) => {
             break;
         
         case 'cancel_reset_hwid':
+            pendingResets.delete(userId);
             await interaction.update({
                 content: '❌ HWID reset cancelled.',
                 components: []
