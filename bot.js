@@ -262,7 +262,7 @@ client.on('interactionCreate', async (interaction) => {
             }
             
             // Nếu có nhiều keys, show selection menu
-            const selectMenu = new ActionRowBuilder()
+            const resetKeyMenu = new ActionRowBuilder()
                 .addComponents(
                     new StringSelectMenuBuilder()
                         .setCustomId('select_key_reset_hwid')
@@ -280,7 +280,7 @@ client.on('interactionCreate', async (interaction) => {
                 content: '🔑 **Select a key to reset HWID:**\n\n' +
                          `You have **${keysWithHwid.length} keys** with HWID registered.\n` +
                          `Cooldown: **${cooldownName}**`,
-                components: [selectMenu],
+                components: [resetKeyMenu],
                 ephemeral: true
             });
             break;
@@ -552,7 +552,7 @@ client.on('interactionCreate', async (interaction) => {
             }
             
             // Tạo dropdown menu để chọn key
-            const selectMenu = new ActionRowBuilder()
+            const manageKeyMenu = new ActionRowBuilder()
                 .addComponents(
                     new StringSelectMenuBuilder()
                         .setCustomId('view_key_details')
@@ -566,15 +566,15 @@ client.on('interactionCreate', async (interaction) => {
                         )
                 );
             
-            const embed = new EmbedBuilder()
+            const manageEmbed = new EmbedBuilder()
                 .setColor('#0099FF')
                 .setTitle('📋 Your Keys')
                 .setDescription(`You have **${userKeys.length}** key(s).\nSelect a key below to view details.`)
                 .setTimestamp();
             
             await interaction.reply({
-                embeds: [embed],
-                components: [selectMenu],
+                embeds: [manageEmbed],
+                components: [manageKeyMenu],
                 ephemeral: true
             });
             break;
