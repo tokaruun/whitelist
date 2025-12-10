@@ -169,7 +169,7 @@ client.on('messageCreate', async (message) => {
         
         if (!key) {
             return await message.reply({
-                content: '❌ Please provide a key!\n**Usage:** `!blacklist <KEY>`'
+                content: ' Please provide a key!\n**Usage:** `!blacklist <KEY>`'
             });
         }
         
@@ -178,14 +178,14 @@ client.on('messageCreate', async (message) => {
         
         if (!keyData) {
             return await message.reply({
-                content: `❌ Key not found: \`${key}\``
+                content: ` Key not found: \`${key}\``
             });
         }
         
         // Kiểm tra key đã bị blacklist chưa
         if (!keyData.active) {
             return await message.reply({
-                content: `⚠️ Key \`${key}\` is already blacklisted!`
+                content: ` Key \`${key}\` is already blacklisted!`
             });
         }
         
@@ -263,9 +263,14 @@ client.on('interactionCreate', async (interaction) => {
             
             if (memberReset.roles.cache.some(role => role.name === 'Reset Access')) {
                 cooldownName = '1 second';
-            } else if (memberReset.roles.cache.some(role => role.name === 'Premium')) {
+            } 
+            else if (memberSelect.roles.cache.some(role => role.name === 'Server Booster')) {
+                cooldownName = '12 hours';
+            } 
+            else if (memberReset.roles.cache.some(role => role.name === 'Premium')) {
                 cooldownName = '2.5 days';
-            } else {
+            } 
+            else {
                 return await interaction.reply({
                     content: ' You need **Premium**  role to reset HWID!',
                     ephemeral: true
@@ -318,10 +323,16 @@ client.on('interactionCreate', async (interaction) => {
             if (memberSelect.roles.cache.some(role => role.name === 'Reset Access')) {
                 cooldownTimeSelect = 1000;
                 cooldownNameSelect = 'Resset Acess ';
-            } else if (memberSelect.roles.cache.some(role => role.name === 'Premium')) {
+            } 
+            else if (memberSelect.roles.cache.some(role => role.name === 'Premium')) {
                 cooldownTimeSelect = 2.5 * 24 * 60 * 60 * 1000;
                 cooldownNameSelect = '2.5 days';
-            } else {
+            } 
+            else if (memberSelect.roles.cache.some(role => role.name === 'Server Booster')) {
+                cooldownTimeSelect =  12 * 60 * 60 * 1000;
+                cooldownNameSelect = '12 hours';
+            } 
+            else {
                 return await interaction.update({
                     content: ' You need **Premium**  role to reset HWID!',
                     components: []
@@ -341,7 +352,7 @@ client.on('interactionCreate', async (interaction) => {
                 if (cooldownTimeSelect === 1000) {
                 timeDisplay = `**${secondsLeft} second(s)**`;
                 } 
-                else if (cooldownTimeSelect === 24 * 60 * 60 * 1000) {
+                else if (cooldownTimeSelect === 12 * 60 * 60 * 1000) {
                     timeDisplay = `**${hoursLeft} hour(s)**`;
                 }
                 else if (cooldownTimeSelect === 2.5 * 24 * 60 * 60 * 1000) {
