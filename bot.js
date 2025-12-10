@@ -475,29 +475,65 @@ client.on('interactionCreate', async (interaction) => {
     }
 
     // manage select -> show details with Back button
-    if (interaction.isStringSelectMenu() && interaction.customId === 'slash_manage_select') {
-      const key = interaction.values[0];
-      const data = await getKey(key);
-      if (!data) return interaction.reply({ content: 'Key not found.', ephemeral: true });
+    // manage select -> show details with Back button + Delete Key if blacklisted
+if (interaction.isStringSelectMenu() && interaction.customId === 'slash_manage_select') {
+  const key = interaction.values[0];
+  const data = await getKey(key);
+  if (!data) return interaction.reply({ content: 'Key not found.', ephemeral: true });
 
-      const embed = new EmbedBuilder()
-        .setColor(data.active ? '#22dd99' : '#dd4444')
-        .setTitle(' Key Details')
-        .addFields(
-          { name: 'Key', value: `\`\`\`${key}\`\`\`` },
-          { name: 'Status', value: data.active ? 'Active' : 'No work ( Blacklisted )', inline: true },
-          { name: 'Expires', value: data.expiresAt ? new Date(data.expiresAt).toLocaleString() : 'Lifetime', inline: true },
-          { name: 'HWID', value: data.hwid || 'Not registered', inline: false },
-          { name: 'Redeemed', value: data.redeemedAt ? new Date(data.redeemedAt).toLocaleString() : 'Not redeemed', inline: false }
-        )
-        .setTimestamp();
+  const embed = new EmbedBuilder()
+    .setColor(data.active ? '#22dd99' : '#dd4444')
+    .setTitle('🔍 Key Details')
+    .addFields(
+      { name: 'Key', value: `\`\`\`${key}\`\`\`` },
+      { name: 'Status', value: data.active ? 'Active' : 'No work (Blacklisted)', inline: true },
+      { name: 'Expires', value: data.expiresAt ? new Date(data.expiresAt).toLocaleString() : 'Lifetime', inline: true },
+      { name: 'HWID', value: data.hwid || 'Not registered' },
+      { name: 'Redeemed', value: data.redeemedAt ? new Date(data.redeemedAt).toLocaleString() : 'Not redeemed' }
+    )
+    .setTimestamp();
 
-      const backRow = new ActionRowBuilder().addComponents(
-        new ButtonBuilder().setCustomId('slash_manage_back').setLabel(' Back').setStyle(ButtonStyle.Secondary)
-      );
+  // always show Back, but add Delete Key only if key inactive
+  const row = new ActionRowBuilder()
+    .addComponents(
+      new ButtonBuilder()
+        .setCustomId('slash_manage_back')
+        .setLabel('⬅️ Back')
+        .setStyle(ButtonStyle.Secondary)
+    );
 
-      return interaction.reply({ embeds: [embed], components: [backRow], ephemeral: true });
-    }
+  if (!data.active) {
+    row.addComponents(
+      new ButtonBuilder()
+        .setCustomId(`slash_delete_key_${key}`)
+        .setLabel('🗑 Delete Key')
+        .setStyle(ButtonStyle.Danger)
+    );
+  }
+
+  return interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
+}
+    // DELETE KEY button
+if (interaction.isButton() && interaction.customId.startsWith('slash_delete_key_')) {
+  const key = interaction.customId.replace('slash_delete_key_', '');
+  const data = await getKey(key);
+  if (!data) return interaction.reply({ content: 'Key not found.', ephemeral: true });
+
+  // remove key owner
+  await setKey(key, { ...data, userId: null, redeemedAt: null, hwid: null });
+
+  // remove from user's key list
+  const user = await getUser(interaction.user.id) || { userId: interaction.user.id, keys: [] };
+  user.keys = (user.keys || []).filter(k => k !== key);
+  await setUser(interaction.user.id, user);
+
+  // reply
+  return interaction.reply({
+    content: `🗑 **Key deleted from your account:**\n\`\`\`${key}\`\`\``,
+    ephemeral: true
+  });
+}
+
 
     // manage back button -> re-show menu
     if (interaction.isButton() && interaction.customId === 'slash_manage_back') {
