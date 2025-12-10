@@ -603,7 +603,7 @@ async function start() {
     console.error('Discord login failed:', err);
     process.exit(1);
   });
-  client.once('ready', async () => {
+  client.once('clientReady', async () => {
     console.log(`Bot online: ${client.user.tag}`);
     await registerSlashCommands();
   });
