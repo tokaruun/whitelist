@@ -65,9 +65,7 @@ async function setKey(key, data) {
     );
 }
 
-async function deleteKey(key) {
-    await keysCollection.deleteOne({ key });
-}
+
 
 async function getAllKeys() {
     return await keysCollection.find({}).toArray();
@@ -222,6 +220,152 @@ client.on('messageCreate', async (message) => {
             .setTimestamp();
         
         await message.reply({ embeds: [embed] });
+            if (message.content.startsWith('!addkey ')) {
+        // Check role Whitelist
+        const member = message.guild.members.cache.get(message.author.id);
+        
+        if (!member.roles.cache.some(role => role.name === 'Whitelist')) {
+            return await message.reply({
+                content: '❌ You need **Whitelist** role to use this command!'
+            });
+        }
+        
+        // Parse arguments: !addkey <quantity> <duration>
+        const args = message.content.split(' ').slice(1);
+        
+        if (args.length < 2) {
+            return await message.reply({
+                content: '❌ Invalid usage!\n\n' +
+                         '**Usage:** `!addkey <quantity> <duration>`\n' +
+                         '**Examples:**\n' +
+                         '• `!addkey 5 7` - Create 5 keys with 7 days duration\n' +
+                         '• `!addkey 10 30` - Create 10 keys with 30 days duration\n' +
+                         '• `!addkey 3 0` - Create 3 lifetime keys (no expiration)'
+            });
+        }
+        
+        const quantity = parseInt(args[0]);
+        const duration = parseInt(args[1]);
+        
+        // Validate quantity
+        if (isNaN(quantity) || quantity < 1 || quantity > 50) {
+            return await message.reply({
+                content: '❌ Invalid quantity! Must be between 1 and 50.'
+            });
+        }
+        
+        // Validate duration
+        if (isNaN(duration) || duration < 0) {
+            return await message.reply({
+                content: '❌ Invalid duration! Must be 0 (lifetime) or positive number of days.'
+            });
+        }
+        
+        // Send processing message
+        const processingMsg = await message.reply({
+            content: `⏳ Creating ${quantity} key(s) with ${duration === 0 ? 'lifetime' : duration + ' days'} duration...`
+        });
+        
+        try {
+            // Create keys
+            const createdKeys = [];
+            
+            for (let i = 0; i < quantity; i++) {
+                const key = generateKey();
+                const expiresAt = duration > 0 ? Date.now() + (duration * 24 * 60 * 60 * 1000) : null;
+                
+                await setKey(key, {
+                    key,
+                    userId: null,
+                    hwid: null,
+                    active: true,
+                    expiresAt,
+                    createdAt: Date.now(),
+                    createdBy: message.author.id,
+                    redeemedAt: null
+                });
+                
+                createdKeys.push({
+                    key,
+                    expires: expiresAt ? new Date(expiresAt).toLocaleString() : '♾️ Lifetime'
+                });
+            }
+            
+            // Log to MongoDB
+            const logCollection = db.collection('key_creation_logs');
+            await logCollection.insertOne({
+                createdBy: message.author.id,
+                createdByTag: message.author.tag,
+                quantity: quantity,
+                duration: duration,
+                keys: createdKeys.map(k => k.key),
+                createdAt: Date.now()
+            });
+            
+            console.log(`🔑 Created ${quantity} key(s) by ${message.author.tag}`);
+            
+            // Create embed response
+            const embed = new EmbedBuilder()
+                .setColor('#00FF00')
+                .setTitle('✅ Keys Created Successfully')
+                .setDescription(`Created **${quantity}** key(s) with **${duration === 0 ? 'lifetime' : duration + ' days'}** duration`)
+                .addFields(
+                    { name: 'Created By', value: `${message.author.tag}`, inline: true },
+                    { name: 'Quantity', value: `${quantity}`, inline: true },
+                    { name: 'Duration', value: `${duration === 0 ? '♾️ Lifetime' : duration + ' days'}`, inline: true }
+                )
+                .setTimestamp();
+            
+            // Show keys (max 10 in embed to avoid spam)
+            const displayKeys = createdKeys.slice(0, 10);
+            let keysText = displayKeys.map((k, i) => 
+                `${i + 1}. \`${k.key}\`\n   Expires: ${k.expires}`
+            ).join('\n\n');
+            
+            if (createdKeys.length > 10) {
+                keysText += `\n\n... and ${createdKeys.length - 10} more keys`;
+            }
+            
+            embed.addFields({ name: '🔑 Keys', value: keysText, inline: false });
+            
+            await processingMsg.edit({
+                content: null,
+                embeds: [embed]
+            });
+            
+            // Send full key list to DM if more than 10 keys
+            if (createdKeys.length > 10) {
+                try {
+                    const dm = await message.author.createDM();
+                    
+                    // Split keys into chunks of 20
+                    const chunks = [];
+                    for (let i = 0; i < createdKeys.length; i += 20) {
+                        chunks.push(createdKeys.slice(i, i + 20));
+                    }
+                    
+                    await dm.send(`📋 **Full list of ${quantity} keys:**\n\`\`\`${createdKeys.map(k => k.key).join('\n')}\`\`\``);
+                    
+                    await message.channel.send({
+                        content: `✅ Full key list sent to your DM!`,
+                        reply: { messageReference: message.id }
+                    });
+                } catch (error) {
+                    console.error('Cannot send DM:', error);
+                    await message.channel.send({
+                        content: '⚠️ Cannot send DM! Please enable DMs from server members.',
+                        reply: { messageReference: message.id }
+                    });
+                }
+            }
+            
+        } catch (error) {
+            console.error('Error creating keys:', error);
+            await processingMsg.edit({
+                content: '❌ Error creating keys! Please try again.'
+            });
+        }
+      }
     }
 });
 
@@ -252,7 +396,7 @@ client.on('interactionCreate', async (interaction) => {
             
             if (keysWithHwid.length === 0) {
                 return await interaction.reply({
-                    content: ' None of your keys have HWID registered yet!',
+                    content: ' Not have any keys got hwid to reset!',
                     ephemeral: true
                 });
             }
