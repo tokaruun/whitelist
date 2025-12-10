@@ -1,4 +1,4 @@
-// bot.js - Discord Bot với MongoDB
+
 const { Client, GatewayIntentBits, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuBuilder } = require('discord.js');
 const express = require('express');
 const crypto = require('crypto');
@@ -17,41 +17,41 @@ const client = new Client({
     partials: ['CHANNEL']
 });
 
-// Config
+
 const DISCORD_TOKEN = process.env.DISCORD_TOKEN;
 const API_SECRET = process.env.API_SECRET || 'change-this-secret';
 const PORT = process.env.PORT || 3000;
-const MONGODB_URI = process.env.MONGODB_URI; // Add MongoDB URI to environment variables
+const MONGODB_URI = process.env.MONGODB_URI; 
 
-// MongoDB setup
+
 let db;
 let keysCollection;
 let usersCollection;
 
-// Lưu temporary data cho reset HWID
-const pendingResets = new Map(); // userId -> { key, timestamp }
+
+const pendingResets = new Map(); 
 
 async function connectMongoDB() {
     try {
         const mongoClient = new MongoClient(MONGODB_URI);
         await mongoClient.connect();
-        console.log('✅ Connected to MongoDB');
+        console.log(' Connected to MongoDB');
         
-        db = mongoClient.db('whitelist'); // Tên database
+        db = mongoClient.db('whitelist'); // thay ten database vo nhaa
         keysCollection = db.collection('keys');
         usersCollection = db.collection('users');
         
-        // Create indexes
+
         await keysCollection.createIndex({ key: 1 }, { unique: true });
         await usersCollection.createIndex({ userId: 1 }, { unique: true });
         
     } catch (error) {
-        console.error('❌ MongoDB connection failed:', error);
+        console.error(' MongoDB connection failed:', error);
         process.exit(1);
     }
 }
 
-// ==================== HELPER FUNCTIONS ====================
+
 
 async function getKey(key) {
     return await keysCollection.findOne({ key });
@@ -91,11 +91,11 @@ function generateKey() {
     return crypto.randomBytes(16).toString('hex').toUpperCase();
 }
 
-// ==================== DISCORD BOT ====================
+
 
 client.on('ready', async () => {
-    console.log(`✅ Bot online: ${client.user.tag}`);
-    console.log(`🚀 API running on port ${PORT}`);
+    console.log(` Bot online: ${client.user.tag}`);
+    console.log(` API running on port ${PORT}`);
 });
 
 client.on('messageCreate', async (message) => {
@@ -103,8 +103,8 @@ client.on('messageCreate', async (message) => {
     
     if (message.content === '!panel') {
         const embed = new EmbedBuilder()
-            .setColor('#FF1744')
-            .setTitle('Whitelist Panel Kemu HuB')
+            .setColor('#0a0a0aff')
+            .setTitle('Whitelist Panel Astra Hub')
             .setDescription('Use the buttons below to manage your keys.')
             .setThumbnail(client.user.displayAvatarURL())
             .setTimestamp();
@@ -140,7 +140,7 @@ client.on('messageCreate', async (message) => {
         
         const embed = new EmbedBuilder()
             .setColor('#00FF00')
-            .setTitle('📊 Bot Statistics')
+            .setTitle(' Bot Statistics')
             .addFields(
                 { name: ' Total Keys', value: totalKeys.toString(), inline: true },
                 { name: ' Total Users', value: totalUsers.toString(), inline: true },
@@ -151,18 +151,17 @@ client.on('messageCreate', async (message) => {
         await message.reply({ embeds: [embed] });
     }
     
-    // ← THÊM ĐOẠN NÀY VÀO ĐÂY
-    if (message.content.startsWith('!blacklist ')) {
-        // Check role Whitelist
+
+    if (message.content.startsWith('!blacklist ')) { // cach sd !blacklist (key)
+
         const member = message.guild.members.cache.get(message.author.id);
         
-        if (!member.roles.cache.some(role => role.name === 'Whitelist')) {
+        if (!member.roles.cache.some(role => role.name === 'Whitelist')) { // thay role name o day nhe  
             return await message.reply({
                 content: ' You need **Whitelist** role to use this command!'
             });
         }
-        
-        // Lấy key từ message
+
         const key = message.content.split(' ')[1]?.trim();
         
         if (!key) {
@@ -171,7 +170,7 @@ client.on('messageCreate', async (message) => {
             });
         }
         
-        // Kiểm tra key có tồn tại không
+
         const keyData = await getKey(key);
         
         if (!keyData) {
@@ -180,14 +179,14 @@ client.on('messageCreate', async (message) => {
             });
         }
         
-        // Kiểm tra key đã bị blacklist chưa
+
         if (!keyData.active) {
             return await message.reply({
                 content: ` Key \`${key}\` is already blacklisted!`
             });
         }
         
-        // Blacklist key
+
         await setKey(key, {
             ...keyData,
             active: false,
@@ -195,7 +194,7 @@ client.on('messageCreate', async (message) => {
             blacklistedBy: message.author.id
         });
         
-        // Log to MongoDB
+
         const logCollection = db.collection('blacklist_logs');
         await logCollection.insertOne({
             key: key,
@@ -205,12 +204,12 @@ client.on('messageCreate', async (message) => {
             previousOwner: keyData.userId
         });
         
-        console.log(`🚫 Key blacklisted: ${key} by ${message.author.tag}`);
+        console.log(` Key blacklisted: ${key} by ${message.author.tag}`);
         
-        // Tạo embed response
+
         const embed = new EmbedBuilder()
             .setColor('#FF0000')
-            .setTitle('🚫 Key Blacklisted')
+            .setTitle(' Key Blacklisted')
             .addFields(
                 { name: 'Key', value: `\`${key}\``, inline: false },
                 { name: 'Blacklisted By', value: `${message.author.tag}`, inline: true },
@@ -220,22 +219,22 @@ client.on('messageCreate', async (message) => {
             .setTimestamp();
         
         await message.reply({ embeds: [embed] });
-            if (message.content.startsWith('!addkey ')) {
-        // Check role Whitelist
+    if (message.content.startsWith('!addkey ')) {
+
         const member = message.guild.members.cache.get(message.author.id);
         
         if (!member.roles.cache.some(role => role.name === 'Whitelist')) {
             return await message.reply({
-                content: '❌ You need **Whitelist** role to use this command!'
+                content: ' You need **Whitelist** role to use this command!'
             });
         }
         
-        // Parse arguments: !addkey <quantity> <duration>
+
         const args = message.content.split(' ').slice(1);
         
         if (args.length < 2) {
             return await message.reply({
-                content: '❌ Invalid usage!\n\n' +
+                content: ' Invalid usage!\n\n' +
                          '**Usage:** `!addkey <quantity> <duration>`\n' +
                          '**Examples:**\n' +
                          '• `!addkey 5 7` - Create 5 keys with 7 days duration\n' +
@@ -247,27 +246,27 @@ client.on('messageCreate', async (message) => {
         const quantity = parseInt(args[0]);
         const duration = parseInt(args[1]);
         
-        // Validate quantity
+
         if (isNaN(quantity) || quantity < 1 || quantity > 50) {
             return await message.reply({
-                content: '❌ Invalid quantity! Must be between 1 and 50.'
+                content: ' Invalid quantity! Must be between 1 and 50.'
             });
         }
         
-        // Validate duration
+
         if (isNaN(duration) || duration < 0) {
             return await message.reply({
-                content: '❌ Invalid duration! Must be 0 (lifetime) or positive number of days.'
+                content: ' Invalid duration! Must be 0 (lifetime) or positive number of days.'
             });
         }
         
-        // Send processing message
+
         const processingMsg = await message.reply({
-            content: `⏳ Creating ${quantity} key(s) with ${duration === 0 ? 'lifetime' : duration + ' days'} duration...`
+            content: ` Creating ${quantity} key(s) with ${duration === 0 ? 'lifetime' : duration + ' days'} duration...`
         });
         
         try {
-            // Create keys
+
             const createdKeys = [];
             
             for (let i = 0; i < quantity; i++) {
@@ -291,7 +290,7 @@ client.on('messageCreate', async (message) => {
                 });
             }
             
-            // Log to MongoDB
+
             const logCollection = db.collection('key_creation_logs');
             await logCollection.insertOne({
                 createdBy: message.author.id,
@@ -302,12 +301,12 @@ client.on('messageCreate', async (message) => {
                 createdAt: Date.now()
             });
             
-            console.log(`🔑 Created ${quantity} key(s) by ${message.author.tag}`);
+            console.log(` Created ${quantity} key(s) by ${message.author.tag}`);
             
-            // Create embed response
+
             const embed = new EmbedBuilder()
                 .setColor('#00FF00')
-                .setTitle('✅ Keys Created Successfully')
+                .setTitle(' Keys Created Successfully')
                 .setDescription(`Created **${quantity}** key(s) with **${duration === 0 ? 'lifetime' : duration + ' days'}** duration`)
                 .addFields(
                     { name: 'Created By', value: `${message.author.tag}`, inline: true },
@@ -316,7 +315,7 @@ client.on('messageCreate', async (message) => {
                 )
                 .setTimestamp();
             
-            // Show keys (max 10 in embed to avoid spam)
+  
             const displayKeys = createdKeys.slice(0, 10);
             let keysText = displayKeys.map((k, i) => 
                 `${i + 1}. \`${k.key}\`\n   Expires: ${k.expires}`
@@ -326,34 +325,34 @@ client.on('messageCreate', async (message) => {
                 keysText += `\n\n... and ${createdKeys.length - 10} more keys`;
             }
             
-            embed.addFields({ name: '🔑 Keys', value: keysText, inline: false });
+            embed.addFields({ name: ' Keys', value: keysText, inline: false });
             
             await processingMsg.edit({
                 content: null,
                 embeds: [embed]
             });
             
-            // Send full key list to DM if more than 10 keys
+
             if (createdKeys.length > 10) {
                 try {
                     const dm = await message.author.createDM();
                     
-                    // Split keys into chunks of 20
+
                     const chunks = [];
                     for (let i = 0; i < createdKeys.length; i += 20) {
                         chunks.push(createdKeys.slice(i, i + 20));
                     }
                     
-                    await dm.send(`📋 **Full list of ${quantity} keys:**\n\`\`\`${createdKeys.map(k => k.key).join('\n')}\`\`\``);
+                    await dm.send(` **Full list of ${quantity} keys:**\n\`\`\`${createdKeys.map(k => k.key).join('\n')}\`\`\``);
                     
                     await message.channel.send({
-                        content: `✅ Full key list sent to your DM!`,
+                        content: ` Full key list sent to your DM!`,
                         reply: { messageReference: message.id }
                     });
                 } catch (error) {
                     console.error('Cannot send DM:', error);
                     await message.channel.send({
-                        content: '⚠️ Cannot send DM! Please enable DMs from server members.',
+                        content: ' Cannot send DM! Please enable DMs from server members.',
                         reply: { messageReference: message.id }
                     });
                 }
@@ -362,7 +361,7 @@ client.on('messageCreate', async (message) => {
         } catch (error) {
             console.error('Error creating keys:', error);
             await processingMsg.edit({
-                content: '❌ Error creating keys! Please try again.'
+                content: ' Error creating keys! Please try again.'
             });
         }
       }
@@ -385,7 +384,7 @@ client.on('interactionCreate', async (interaction) => {
                 });
             }
             
-            // Lấy tất cả keys có HWID
+
             const keysWithHwid = [];
             for (const key of userDataReset.keys) {
                 const keyData = await getKey(key);
@@ -401,17 +400,17 @@ client.on('interactionCreate', async (interaction) => {
                 });
             }
             
-            // Check role để xác định cooldown
+
             const memberReset = await interaction.guild.members.fetch(userId);
             let cooldownName;
             
-            if (memberReset.roles.cache.some(role => role.name === 'Reset Access')) {
+            if (memberReset.roles.cache.some(role => role.name === 'Reset Access')) {       // thay role
                 cooldownName = '1 second';
             } 
             else if (memberSelect.roles.cache.some(role => role.name === 'Server Booster')) {
                 cooldownName = '12 hours';
             } 
-            else if (memberReset.roles.cache.some(role => role.name === 'Premium')) {
+            else if (memberReset.roles.cache.some(role => role.name === 'Premium')) { 
                 cooldownName = '2.5 days';
             } 
             else {
@@ -421,7 +420,7 @@ client.on('interactionCreate', async (interaction) => {
                 });
             }
             
-            // Luôn hiện dropdown menu (dù 1 key hay nhiều keys)
+
             const resetKeyMenu = new ActionRowBuilder()
                 .addComponents(
                     new StringSelectMenuBuilder()
@@ -459,7 +458,7 @@ client.on('interactionCreate', async (interaction) => {
                 });
             }
             
-            // Check role và cooldown
+
             const memberSelect = await interaction.guild.members.fetch(userId);
             let cooldownTimeSelect;
             let cooldownNameSelect;
@@ -520,7 +519,7 @@ client.on('interactionCreate', async (interaction) => {
                         .setStyle(ButtonStyle.Secondary)
                 );
             
-            // Lưu key vào pending resets
+
             pendingResets.set(userId, { key: selectedKey, timestamp: Date.now() });
             
             await interaction.update({
@@ -533,7 +532,7 @@ client.on('interactionCreate', async (interaction) => {
             break;
         
         case 'confirm_reset_hwid':
-            // Lấy key từ pending resets
+
             const pendingReset = pendingResets.get(userId);
             
             if (!pendingReset) {
@@ -542,8 +541,7 @@ client.on('interactionCreate', async (interaction) => {
                     components: []
                 });
             }
-            
-            // Check timeout (5 minutes)
+
             if (Date.now() - pendingReset.timestamp > 5 * 60 * 1000) {
                 pendingResets.delete(userId);
                 return await interaction.update({
@@ -564,7 +562,7 @@ client.on('interactionCreate', async (interaction) => {
                 });
             }
             
-            // Check role lại để xác định cooldown khi confirm
+
             const memberConfirm = await interaction.guild.members.fetch(userId);
             let cooldownDisplay;
             
@@ -578,20 +576,20 @@ client.on('interactionCreate', async (interaction) => {
             
             const oldHwid = keyDataToReset.hwid;
             
-            // Reset HWID cho key cụ thể
+
             await setKey(keyToReset, {
                 ...keyDataToReset,
                 hwid: null
             });
             
-            // Update user reset time
+
             await setUser(userId, {
                 ...userToReset,
                 lastHwidReset: Date.now(),
                 hwidResetCount: (userToReset.hwidResetCount || 0) + 1
             });
             
-            // Log to MongoDB
+
             const logCollection = db.collection('hwid_reset_logs');
             await logCollection.insertOne({
                 userId: userId,
@@ -602,7 +600,7 @@ client.on('interactionCreate', async (interaction) => {
                 cooldown: cooldownDisplay
             });
             
-            // Clear pending reset
+
             pendingResets.delete(userId);
             
             console.log(` HWID Reset: User ${userId} (${interaction.user.tag}) reset HWID for key ${keyToReset}`);
@@ -666,7 +664,7 @@ client.on('interactionCreate', async (interaction) => {
                     return await dm.send(' Key expired');
                 }
                 
-                // Redeem thành công
+
                 await setKey(key, {
                     ...keyData,
                     userId: userId,
@@ -682,7 +680,6 @@ client.on('interactionCreate', async (interaction) => {
                     ? `Expired: ${new Date(keyData.expiresAt).toLocaleString('vi-VN')}`
                     : ' Infinity';
 
-                // Gán role 'Premium'
                 let roleResultText = '';
                 try {
                     if (interaction.guild) {
@@ -724,7 +721,7 @@ client.on('interactionCreate', async (interaction) => {
                 });
             }
             
-            // Tạo dropdown menu để chọn key
+
             const manageKeyMenu = new ActionRowBuilder()
                 .addComponents(
                     new StringSelectMenuBuilder()
@@ -841,7 +838,7 @@ client.on('interactionCreate', async (interaction) => {
     }   
 });
 
-// ==================== API ENDPOINTS ====================
+
 
 function authenticate(req, res, next) {
     const apiKey = req.headers['x-api-key'];
@@ -851,7 +848,7 @@ function authenticate(req, res, next) {
     next();
 }
 
-// Health check
+
 app.get('/', async (req, res) => {
     const totalKeys = await keysCollection.countDocuments();
     const totalUsers = await usersCollection.countDocuments();
@@ -874,7 +871,7 @@ app.get('/api/health', (req, res) => {
     });
 });
 
-// Tạo key
+// bug dang fix
 app.post('/api/keys/create', authenticate, async (req, res) => {
     const { duration, quantity = 1 } = req.body;
     
@@ -913,7 +910,7 @@ app.post('/api/keys/create', authenticate, async (req, res) => {
     });
 });
 
-// Kiểm tra key
+
 app.get('/api/keys/check/:key', authenticate, async (req, res) => {
     const { key } = req.params;
     const keyData = await getKey(key);
@@ -931,7 +928,6 @@ app.get('/api/keys/check/:key', authenticate, async (req, res) => {
 
 
 
-// List tất cả keys
 app.get('/api/keys/list', authenticate, async (req, res) => {
     const allKeys = await getAllKeys();
     
@@ -947,7 +943,7 @@ app.get('/api/keys/list', authenticate, async (req, res) => {
     });
 });
 
-// Xác thực HWID (cho game/app) - QUAN TRỌNG CHO LUA LOADER
+
 app.post('/api/verify', async (req, res) => {
     const { key, hwid } = req.body;
     
@@ -976,11 +972,11 @@ app.post('/api/verify', async (req, res) => {
         return res.json({ success: false, message: 'Key not redeemed yet' });
     }
     
-    // Check HWID từ key (không phải từ user nữa)
+
     if (!keyData.hwid) {
-        // Lần đầu tiên sử dụng key, register HWID vào key
+
         await setKey(key, { ...keyData, hwid });
-        console.log(`🔐 HWID registered for key ${key}: ${hwid}`);
+        console.log(` HWID registered for key ${key}: ${hwid}`);
         return res.json({ success: true, message: 'HWID registered successfully' });
     }
     
@@ -991,25 +987,25 @@ app.post('/api/verify', async (req, res) => {
     return res.json({ success: false, message: 'HWID mismatch' });
 });
 
-// ==================== START ====================
+
 
 async function start() {
-    // Connect MongoDB first
+
     await connectMongoDB();
     
-    // Start Express server
+
     app.listen(PORT, () => {
-        console.log(`🚀 API Server running on port ${PORT}`);
+        console.log(` API Server running on port ${PORT}`);
     });
     
-    // Login Discord bot
+
     if (!DISCORD_TOKEN) {
-        console.error('❌ DISCORD_TOKEN not set!');
+        console.error(' DISCORD_TOKEN not set!');
         process.exit(1);
     }
     
     await client.login(DISCORD_TOKEN).catch(err => {
-        console.error('❌ Cannot login Discord:', err);
+        console.error(' Cannot login Discord:', err);
         process.exit(1);
     });
 }
