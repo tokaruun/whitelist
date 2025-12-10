@@ -92,14 +92,14 @@ client.on('messageCreate', async (message) => {
 
   const embed = new EmbedBuilder()
     .setColor('#5865F2')
-    .setTitle('✨ Astra Hub Whitelist Panel')
+    .setTitle('✨ Kemu Hub Whitelist Panel')
     .setDescription('Quản lý whitelist của bạn bằng các nút bên dưới.')
     .setThumbnail(client.user?.displayAvatarURL?.() || null)
     .addFields(
       { name: '📌 Chức năng', value: 'Reset HWID / Redeem Key / Xem Key' },
       { name: '🛡️ Bảo mật', value: 'Tất cả thao tác đều private & ephemeral.' }
     )
-    .setFooter({ text: 'Astra Hub • Premium System' })
+    .setFooter({ text: 'Kemu Hub • Premium System' })
     .setTimestamp();
 
   const row = new ActionRowBuilder().addComponents(
