@@ -90,8 +90,8 @@ client.on('messageCreate', async (message) => {
 
   const embed = new EmbedBuilder()
     .setColor('#5865F2')
-    .setTitle(' **Kemu Hub Whitelist Panel**')
-    .setDescription('Button Whitelist .')
+    .setTitle('🎮 **Kemu Hub Whitelist Panel**')
+    .setDescription('Select an option from the dropdown menu below.')
     .setThumbnail(client.user?.displayAvatarURL?.() || null)
     .addFields(
       { name: 'Function', value: 'Reset HWID / Redeem Key / Manager Key' },
@@ -99,24 +99,18 @@ client.on('messageCreate', async (message) => {
     .setFooter({ text: 'Kemu Hub • Premium System' })
     .setTimestamp();
 
-  const row = new ActionRowBuilder().addComponents(
-    new ButtonBuilder().setCustomId('resethwid').setLabel(' Reset HWID').setStyle(ButtonStyle.Danger),
-    new ButtonBuilder().setCustomId('redeem_key').setLabel(' Redeem').setStyle(ButtonStyle.Success),
-    new ButtonBuilder().setCustomId('manage_key').setLabel(' Manage').setStyle(ButtonStyle.Primary)
-  );
-
   const dropdown = new ActionRowBuilder().addComponents(
     new StringSelectMenuBuilder()
       .setCustomId('panel_dropdown')
-      .setPlaceholder('Select button')
+      .setPlaceholder('Select an option')
       .addOptions([
-        { label: 'Reset HWID', value: 'dd_reset' },
-        { label: 'Redeem Key', value: 'dd_redeem' },
-        { label: 'Manage Key', value: 'dd_manage' }
+        { label: 'Reset HWID', value: 'dd_reset', emoji: '🔄' },
+        { label: 'Redeem Key', value: 'dd_redeem', emoji: '✅' },
+        { label: 'Manage Key', value: 'dd_manage', emoji: '🔑' }
       ])
   );
 
-  await message.channel.send({ embeds: [embed], components: [row, dropdown] });
+  await message.channel.send({ embeds: [embed], components: [dropdown] });
 });
 
 
