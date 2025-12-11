@@ -95,7 +95,7 @@ function generateKey() {
 
 // ==================== DISCORD BOT ====================
 
-client.on('ready', async () => {
+client.on('clientReady', async () => {
     console.log(`✅ Bot online: ${client.user.tag}`);
     console.log(`🚀 API running on port ${PORT}`);
 });
