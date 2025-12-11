@@ -1,5 +1,3 @@
-
-
 const {
   Client,
   GatewayIntentBits,
@@ -10,7 +8,8 @@ const {
   StringSelectMenuBuilder,
   SlashCommandBuilder,
   REST,
-  Routes
+  Routes,
+  MessageFlags
 } = require('discord.js');
 
 const express = require('express');
@@ -148,10 +147,13 @@ async function registerSlashCommands() {
 
 client.on('interactionCreate', async (interaction) => {
   try {
+    // QUAN TRỌNG: Defer reply ngay lập tức để tránh timeout
+    if (interaction.isChatInputCommand() || interaction.isStringSelectMenu()) {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    }
 
     if (interaction.isChatInputCommand()) {
       const commandName = interaction.commandName;
-
 
       if (commandName === 'stats') {
         const totalKeys = await keysCollection.countDocuments();
@@ -165,22 +167,20 @@ client.on('interactionCreate', async (interaction) => {
             { name: 'Uptime', value: `${Math.floor(client.uptime / 1000 / 60)} minutes`, inline: true }
           )
           .setTimestamp();
-        return await interaction.reply({ embeds: [embed], ephemeral: true });
+        return await interaction.editReply({ embeds: [embed] });
       }
-
 
       if (commandName === 'blacklist') {
         const key = interaction.options.getString('key');
         const member = await interaction.guild.members.fetch(interaction.user.id);
         if (!member.roles.cache.some(r => r.name === 'Whitelist')) {
-          return interaction.reply({ content: 'Missing Whitelist role', ephemeral: true });
+          return interaction.editReply({ content: 'Missing Whitelist role' });
         }
         const keyData = await getKey(key);
-        if (!keyData) return interaction.reply({ content: 'Key not found', ephemeral: true });
-        if (!keyData.active) return interaction.reply({ content: 'Key already blacklisted', ephemeral: true });
+        if (!keyData) return interaction.editReply({ content: 'Key not found' });
+        if (!keyData.active) return interaction.editReply({ content: 'Key already blacklisted' });
 
         await setKey(key, { ...keyData, active: false, blacklistedAt: Date.now(), blacklistedBy: interaction.user.id });
-
 
         const logCollection = db.collection('blacklist_logs');
         await logCollection.insertOne({
@@ -201,20 +201,19 @@ client.on('interactionCreate', async (interaction) => {
           )
           .setTimestamp();
 
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.editReply({ embeds: [embed] });
       }
-
 
       if (commandName === 'addkey') {
         const quantity = interaction.options.getInteger('quantity');
         const duration = interaction.options.getInteger('duration');
         const member = await interaction.guild.members.fetch(interaction.user.id);
         if (!member.roles.cache.some(r => r.name === 'Whitelist')) {
-          return interaction.reply({ content: 'Missing Whitelist role', ephemeral: true });
+          return interaction.editReply({ content: 'Missing Whitelist role' });
         }
 
         if (quantity < 1 || quantity > 100) {
-          return interaction.reply({ content: 'Quantity must be 1-100', ephemeral: true });
+          return interaction.editReply({ content: 'Quantity must be 1-100' });
         }
 
         const createdKeys = [];
@@ -234,7 +233,6 @@ client.on('interactionCreate', async (interaction) => {
           createdKeys.push({ key, expiresAt });
         }
 
-        // log creation
         const logCollection = db.collection('key_creation_logs');
         await logCollection.insertOne({
           createdBy: interaction.user.id,
@@ -245,7 +243,6 @@ client.on('interactionCreate', async (interaction) => {
           createdAt: Date.now()
         });
 
-        // DM full list
         try {
           const dm = await interaction.user.createDM();
           await dm.send(`**Your Created Keys (${quantity})**\n\n\`\`\`${createdKeys.map(k => k.key).join('\n')}\`\`\``);
@@ -259,17 +256,16 @@ client.on('interactionCreate', async (interaction) => {
           .setDescription(`Created **${quantity}** keys (${duration === 0 ? 'lifetime' : duration + ' days'})`)
           .setTimestamp();
 
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.editReply({ embeds: [embed] });
       }
 
-      // /redeem
       if (commandName === 'redeem') {
         const key = interaction.options.getString('key');
         const keyData = await getKey(key);
-        if (!keyData) return interaction.reply({ content: 'Invalid key', ephemeral: true });
-        if (!keyData.active) return interaction.reply({ content: 'Key is blacklisted', ephemeral: true });
-        if (keyData.userId) return interaction.reply({ content: 'Key already redeemed', ephemeral: true });
-        if (keyData.expiresAt && Date.now() > keyData.expiresAt) return interaction.reply({ content: 'Key expired', ephemeral: true });
+        if (!keyData) return interaction.editReply({ content: 'Invalid key' });
+        if (!keyData.active) return interaction.editReply({ content: 'Key is blacklisted' });
+        if (keyData.userId) return interaction.editReply({ content: 'Key already redeemed' });
+        if (keyData.expiresAt && Date.now() > keyData.expiresAt) return interaction.editReply({ content: 'Key expired' });
 
         await setKey(key, { ...keyData, userId: interaction.user.id, redeemedAt: Date.now() });
 
@@ -278,7 +274,6 @@ client.on('interactionCreate', async (interaction) => {
         user.keys.push(key);
         await setUser(interaction.user.id, user);
 
-        // auto add Premium role
         let roleMsg = 'No role assigned';
         try {
           const guild = interaction.guild;
@@ -297,7 +292,6 @@ client.on('interactionCreate', async (interaction) => {
           roleMsg = 'Error assigning role';
         }
 
-        // log redeem
         await db.collection('redeem_logs').insertOne({
           userId: interaction.user.id,
           userTag: interaction.user.tag,
@@ -305,31 +299,29 @@ client.on('interactionCreate', async (interaction) => {
           redeemedAt: Date.now()
         });
 
-       let expireText = 'Lifetime';
-       if (keyData.expiresAt) {
-       expireText = new Date(keyData.expiresAt).toLocaleString('vi-VN');
-       }
+        let expireText = 'Lifetime';
+        if (keyData.expiresAt) {
+          expireText = new Date(keyData.expiresAt).toLocaleString('vi-VN');
+        }
 
-       const embed = new EmbedBuilder()
-      .setColor('#33aaee')
-      .setTitle(' Key Redeemed')
-      .addFields(
-       { name: 'Key', value: `\`${key}\`` },
-       { name: 'User', value: `<@${interaction.user.id}>` },
-       { name: 'Role', value: roleMsg },
-       { name: 'Expiration', value: expireText }
-      )
-       .setTimestamp();
+        const embed = new EmbedBuilder()
+          .setColor('#33aaee')
+          .setTitle(' Key Redeemed')
+          .addFields(
+            { name: 'Key', value: `\`${key}\`` },
+            { name: 'User', value: `<@${interaction.user.id}>` },
+            { name: 'Role', value: roleMsg },
+            { name: 'Expiration', value: expireText }
+          )
+          .setTimestamp();
 
-
-        return interaction.reply({ embeds: [embed], ephemeral: true });
+        return interaction.editReply({ embeds: [embed] });
       }
 
-      // /resethwid (starts flow by showing select menu)
       if (commandName === 'resethwid') {
         const user = await getUser(interaction.user.id);
         if (!user || !user.keys || user.keys.length === 0) {
-          return interaction.reply({ content: "You don't have any keys.", ephemeral: true });
+          return interaction.editReply({ content: "You don't have any keys." });
         }
         const keysWithHwid = [];
         for (const k of user.keys) {
@@ -337,7 +329,7 @@ client.on('interactionCreate', async (interaction) => {
           if (kd && kd.hwid) keysWithHwid.push({ key: k, hwid: kd.hwid });
         }
         if (keysWithHwid.length === 0) {
-          return interaction.reply({ content: 'You have no keys with HWID registered.', ephemeral: true });
+          return interaction.editReply({ content: 'You have no keys with HWID registered.' });
         }
 
         const menu = new ActionRowBuilder().addComponents(
@@ -351,18 +343,16 @@ client.on('interactionCreate', async (interaction) => {
             })))
         );
 
-        return interaction.reply({
+        return interaction.editReply({
           content: `You have **${keysWithHwid.length}** key(s) with HWID. Select one to reset.`,
-          components: [menu],
-          ephemeral: true
+          components: [menu]
         });
       }
 
-      // /managekey
       if (commandName === 'managekey') {
         const user = await getUser(interaction.user.id);
         if (!user || !user.keys || user.keys.length === 0) {
-          return interaction.reply({ content: "You don't have keys.", ephemeral: true });
+          return interaction.editReply({ content: "You don't have keys." });
         }
 
         const menu = new ActionRowBuilder().addComponents(
@@ -382,27 +372,25 @@ client.on('interactionCreate', async (interaction) => {
           .setDescription(`You have **${user.keys.length}** key(s). Select one below.`)
           .setTimestamp();
 
-        return interaction.reply({ embeds: [embed], components: [menu], ephemeral: true });
+        return interaction.editReply({ embeds: [embed], components: [menu] });
       }
     }
 
-    // -------------------- Handle selects and buttons --------------------
-    // panel dropdown (from !panel)
+    // Handle dropdown from !panel
     if (interaction.isStringSelectMenu() && interaction.customId === 'panel_dropdown') {
       const val = interaction.values[0];
-      if (val === 'dd_reset') return interaction.reply({ content: 'Use /resethwid to proceed (slash).', ephemeral: true });
-      if (val === 'dd_redeem') return interaction.reply({ content: 'Use /redeem <key> to redeem (slash).', ephemeral: true });
-      if (val === 'dd_manage') return interaction.reply({ content: 'Use /managekey to view your keys (slash).', ephemeral: true });
+      if (val === 'dd_reset') return interaction.reply({ content: 'Use /resethwid to proceed (slash).', flags: MessageFlags.Ephemeral });
+      if (val === 'dd_redeem') return interaction.reply({ content: 'Use /redeem <key> to redeem (slash).', flags: MessageFlags.Ephemeral });
+      if (val === 'dd_manage') return interaction.reply({ content: 'Use /managekey to view your keys (slash).', flags: MessageFlags.Ephemeral });
     }
 
-    // reset select
+    // Reset select menu
     if (interaction.isStringSelectMenu() && interaction.customId === 'slash_reset_select') {
       const selectedKey = interaction.values[0];
       const keyData = await getKey(selectedKey);
       const user = await getUser(interaction.user.id) || {};
       const member = interaction.guild ? await interaction.guild.members.fetch(interaction.user.id) : null;
 
-      // role-based cooldown determination
       let cooldownTime = 0;
       let cooldownName = '';
       if (member && member.roles.cache.some(r => r.name === 'Reset Access')) {
@@ -412,18 +400,18 @@ client.on('interactionCreate', async (interaction) => {
       } else if (member && member.roles.cache.some(r => r.name === 'Premium')) {
         cooldownTime = 2.5 * 24 * 60 * 60 * 1000; cooldownName = '2.5 days';
       } else {
-        return interaction.reply({ content: 'You need Premium role to reset HWID.', ephemeral: true });
+        return interaction.editReply({ content: 'You need Premium role to reset HWID.' });
       }
 
       const last = user.lastHwidReset || 0;
       if (Date.now() - last < cooldownTime) {
         const left = cooldownTime - (Date.now() - last);
         const hours = Math.ceil(left / (60 * 60 * 1000));
-        return interaction.reply({ content: `Cooldown! Try again in approx ${hours} hour(s).`, ephemeral: true });
+        return interaction.editReply({ content: `Cooldown! Try again in approx ${hours} hour(s).` });
       }
 
       if (!keyData || !keyData.hwid) {
-        return interaction.reply({ content: 'Selected key has no HWID registered.', ephemeral: true });
+        return interaction.editReply({ content: 'Selected key has no HWID registered.' });
       }
 
       const row = new ActionRowBuilder().addComponents(
@@ -437,21 +425,20 @@ client.on('interactionCreate', async (interaction) => {
         .setDescription(`Key: \`${selectedKey}\`\nHWID: \`${keyData.hwid}\`\nCooldown after reset: **${cooldownName}**`)
         .setTimestamp();
 
-      return interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
+      return interaction.editReply({ embeds: [embed], components: [row] });
     }
 
-    // confirm reset button
+    // Confirm reset button
     if (interaction.isButton() && interaction.customId.startsWith('slash_confirm_reset_')) {
       const key = interaction.customId.replace('slash_confirm_reset_', '');
       const keyData = await getKey(key);
-      if (!keyData) return interaction.reply({ content: 'Key not found.', ephemeral: true });
+      if (!keyData) return interaction.reply({ content: 'Key not found.', flags: MessageFlags.Ephemeral });
 
       await setKey(key, { ...keyData, hwid: null });
 
       const user = await getUser(interaction.user.id) || { userId: interaction.user.id };
       await setUser(interaction.user.id, { ...user, lastHwidReset: Date.now(), hwidResetCount: (user.hwidResetCount || 0) + 1 });
 
-      // log to mongo
       await db.collection('hwid_reset_logs').insertOne({
         userId: interaction.user.id,
         userTag: interaction.user.tag,
@@ -466,79 +453,85 @@ client.on('interactionCreate', async (interaction) => {
         .setDescription(`Key: \`${key}\``)
         .setTimestamp();
 
-      return interaction.reply({ embeds: [embed], ephemeral: true });
+      return interaction.reply({ embeds: [embed], flags: MessageFlags.Ephemeral });
     }
 
-    // cancel reset button
+    // Cancel reset button
     if (interaction.isButton() && interaction.customId === 'slash_cancel_reset') {
-      return interaction.reply({ content: 'HWID reset cancelled.', ephemeral: true });
+      return interaction.reply({ content: 'HWID reset cancelled.', flags: MessageFlags.Ephemeral });
     }
 
-    // manage select -> show details with Back button
-    // manage select -> show details with Back button + Delete Key if blacklisted
-if (interaction.isStringSelectMenu() && interaction.customId === 'slash_manage_select') {
-  const key = interaction.values[0];
-  const data = await getKey(key);
-  if (!data) return interaction.reply({ content: 'Key not found.', ephemeral: true });
+    // Manage select menu
+    if (interaction.isStringSelectMenu() && interaction.customId === 'slash_manage_select') {
+      const key = interaction.values[0];
+      const data = await getKey(key);
+      if (!data) return interaction.editReply({ content: 'Key not found.' });
 
-  const embed = new EmbedBuilder()
-    .setColor(data.active ? '#22dd99' : '#dd4444')
-    .setTitle('🔍 Key Details')
-    .addFields(
-      { name: 'Key', value: `\`\`\`${key}\`\`\`` },
-      { name: 'Status', value: data.active ? 'Active' : 'No work (Blacklisted)', inline: true },
-      { name: 'Expires', value: data.expiresAt ? new Date(data.expiresAt).toLocaleString() : 'Lifetime', inline: true },
-      { name: 'HWID', value: data.hwid || 'Not registered' },
-      { name: 'Redeemed', value: data.redeemedAt ? new Date(data.redeemedAt).toLocaleString() : 'Not redeemed' }
-    )
-    .setTimestamp();
+      const embed = new EmbedBuilder()
+        .setColor(data.active ? '#22dd99' : '#dd4444')
+        .setTitle('🔍 Key Details')
+        .addFields(
+          { name: 'Key', value: `\`\`\`${key}\`\`\`` },
+          { name: 'Status', value: data.active ? 'Active' : 'No work (Blacklisted)', inline: true },
+          { name: 'Expires', value: data.expiresAt ? new Date(data.expiresAt).toLocaleString() : 'Lifetime', inline: true },
+          { name: 'HWID', value: data.hwid || 'Not registered' },
+          { name: 'Redeemed', value: data.redeemedAt ? new Date(data.redeemedAt).toLocaleString() : 'Not redeemed' }
+        )
+        .setTimestamp();
 
-  // always show Back, but add Delete Key only if key inactive
-  const row = new ActionRowBuilder()
-    .addComponents(
-      new ButtonBuilder()
-        .setCustomId('slash_manage_back')
-        .setLabel(' Back')
-        .setStyle(ButtonStyle.Secondary)
-    );
+      const row = new ActionRowBuilder()
+        .addComponents(
+          new ButtonBuilder()
+            .setCustomId('slash_manage_back')
+            .setLabel(' Back')
+            .setStyle(ButtonStyle.Secondary)
+        );
 
-  if (!data.active) {
-    row.addComponents(
-      new ButtonBuilder()
-        .setCustomId(`slash_delete_key_${key}`)
-        .setLabel(' Delete Key')
-        .setStyle(ButtonStyle.Danger)
-    );
+      if (!data.active) {
+        row.addComponents(
+          new ButtonBuilder()
+            .setCustomId(`slash_delete_key_${key}`)
+            .setLabel(' Delete Key')
+            .setStyle(ButtonStyle.Danger)
+        );
+      }
+
+      return interaction.editReply({ embeds: [embed], components: [row] });
+    }
+
+    // Delete key button
+    if (interaction.isButton() && interaction.customId.startsWith('slash_delete_key_')) {
+      const key = interaction.customId.replace('slash_delete_key_', '');
+      const data = await getKey(key);
+      if (!data) return interaction.reply({ content: 'Key not found.', flags: MessageFlags.Ephemeral });
+
+      await setKey(key, { ...data, userId: null, redeemedAt: null, hwid: null });
+
+      const user = await getUser(interaction.user.id) || { userId: interaction.user.id, keys: [] };
+      user.keys = (user.keys || []).filter(k => k !== key);
+      await setUser(interaction.user.id, user);
+
+      return interaction.reply({
+        content: ` **Key deleted from your account:**\n\`\`\`${key}\`\`\``,
+        flags: MessageFlags.Ephemeral
+      });
+    }
+
+  } catch (err) {
+    console.error('Interaction error:', err);
+    try {
+      if (interaction.deferred || interaction.replied) {
+        await interaction.editReply({ content: 'An error occurred. Please try again.' });
+      } else {
+        await interaction.reply({ content: 'An error occurred. Please try again.', flags: MessageFlags.Ephemeral });
+      }
+    } catch (followupErr) {
+      console.error('Failed to send error message:', followupErr);
+    }
   }
-
-  return interaction.reply({ embeds: [embed], components: [row], ephemeral: true });
-}
-    // DELETE KEY button
-if (interaction.isButton() && interaction.customId.startsWith('slash_delete_key_')) {
-  const key = interaction.customId.replace('slash_delete_key_', '');
-  const data = await getKey(key);
-  if (!data) return interaction.reply({ content: 'Key not found.', ephemeral: true });
-
-  // remove key owner
-  await setKey(key, { ...data, userId: null, redeemedAt: null, hwid: null });
-
-  // remove from user's key list
-  const user = await getUser(interaction.user.id) || { userId: interaction.user.id, keys: [] };
-  user.keys = (user.keys || []).filter(k => k !== key);
-  await setUser(interaction.user.id, user);
-
-  // reply
-  return interaction.reply({
-    content: ` **Key deleted from your account:**\n\`\`\`${key}\`\`\``,
-    ephemeral: true
-  });
-}
-
-} catch (err) {
-  console.error(err);
-}
 });
-// ------------------ API endpoints (kept) ------------------
+
+// ------------------ API endpoints ------------------
 function authenticate(req, res, next) {
   if (req.headers['x-api-key'] !== API_SECRET) return res.status(401).json({ error: 'Unauthorized' });
   next();
