@@ -147,8 +147,14 @@ async function registerSlashCommands() {
 
 client.on('interactionCreate', async (interaction) => {
   try {
-    // QUAN TRỌNG: Defer reply ngay lập tức để tránh timeout
-    if (interaction.isChatInputCommand() || interaction.isStringSelectMenu()) {
+    // Defer reply cho slash commands và select menus (nhưng KHÔNG cho buttons)
+    if (interaction.isChatInputCommand()) {
+      await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+    }
+    
+    if (interaction.isStringSelectMenu() && 
+        (interaction.customId === 'slash_reset_select' || 
+         interaction.customId === 'slash_manage_select')) {
       await interaction.deferReply({ flags: MessageFlags.Ephemeral });
     }
 
@@ -483,7 +489,7 @@ client.on('interactionCreate', async (interaction) => {
         .addComponents(
           new ButtonBuilder()
             .setCustomId('slash_manage_back')
-            .setLabel(' Back')
+            .setLabel('⬅ Back')
             .setStyle(ButtonStyle.Secondary)
         );
 
@@ -491,12 +497,39 @@ client.on('interactionCreate', async (interaction) => {
         row.addComponents(
           new ButtonBuilder()
             .setCustomId(`slash_delete_key_${key}`)
-            .setLabel(' Delete Key')
+            .setLabel('🗑 Delete Key')
             .setStyle(ButtonStyle.Danger)
         );
       }
 
       return interaction.editReply({ embeds: [embed], components: [row] });
+    }
+
+    // Back button - return to key list
+    if (interaction.isButton() && interaction.customId === 'slash_manage_back') {
+      const user = await getUser(interaction.user.id);
+      if (!user || !user.keys || user.keys.length === 0) {
+        return interaction.update({ content: "You don't have keys.", embeds: [], components: [] });
+      }
+
+      const menu = new ActionRowBuilder().addComponents(
+        new StringSelectMenuBuilder()
+          .setCustomId('slash_manage_select')
+          .setPlaceholder('Select key to view')
+          .addOptions(user.keys.map((k, i) => ({
+            label: `Key #${i + 1}`,
+            description: `${k.substring(0, 20)}...`,
+            value: k
+          })))
+      );
+
+      const embed = new EmbedBuilder()
+        .setColor('#0099FF')
+        .setTitle('🔑 Your Keys')
+        .setDescription(`You have **${user.keys.length}** key(s). Select one below.`)
+        .setTimestamp();
+
+      return interaction.update({ embeds: [embed], components: [menu] });
     }
 
     // Delete key button
